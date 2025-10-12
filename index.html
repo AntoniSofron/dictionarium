@@ -5,12 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dictionarium Sanctae Marthae</title>
 
-<!-- pdf.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-<script>
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
-</script>
+<!-- SheetJS (XLSX parser) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
   :root{
@@ -20,16 +16,13 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{ margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui,Segoe UI,Inter,Roboto,Arial,sans-serif; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
-  header{ position:sticky; top:0; z-index:10; backdrop-filter:saturate(1.2) blur(8px);
+  body{ margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui,Segoe UI,Inter,Roboto,Arial,sans-serif; }
+  header{ position:sticky; top:0; z-index:5; backdrop-filter:saturate(1.1) blur(8px);
     background:linear-gradient(180deg, rgba(11,15,20,.9), rgba(11,15,20,.6) 80%, transparent);
     border-bottom:1px solid var(--line); }
   .wrap{max-width:1100px; margin:0 auto; padding:14px 16px}
-
   .brand{ display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:center; }
-  .logo{display:flex; align-items:center}
   .logo img{ height:96px; width:auto; display:block; user-select:none; pointer-events:none; }
-
   h1{margin:0 0 6px; font-size:20px; letter-spacing:.2px}
   .row{ display:grid; gap:10px; grid-template-columns: 1fr 1fr 2fr; align-items:center; }
   .select, .search{ background:var(--card); border:1px solid var(--line); color:var(--text);
@@ -37,10 +30,11 @@
   .search{display:flex; align-items:center; gap:8px}
   .search input{ all:unset; width:100%; font-size:15px; line-height:22px; }
   .hint{font-size:12px; color:var(--muted); margin-top:6px}
-  main{padding:12px 16px 60px}
+  main{padding:12px 16px 80px}
   .status{color:var(--muted); padding:16px}
+  .topbar{ display:flex; gap:8px; align-items:center; justify-content:space-between; margin-top:8px; }
+  .small{ font-size:12px; color:var(--muted) } .count{ font-variant-numeric: tabular-nums; }
   .cards{display:flex; flex-direction:column; gap:10px}
-
   .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px;
     display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:start; }
   .head{ display:flex; flex-direction:column; gap:6px; min-width:0; }
@@ -48,56 +42,36 @@
   .bracket{ color:var(--muted); font-weight:400; }
   .meta{ display:flex; flex-wrap:wrap; gap:6px; }
   .chip{ background:var(--chip); border:1px solid var(--chip-b); padding:4px 8px; border-radius:999px; font-size:12px; color:var(--muted); }
-
   .btn-col{ display:flex; flex-direction:column; gap:8px; align-items:stretch; min-width:170px; }
   .pill-btn{ appearance:none; border:1px solid var(--pill-b); background:var(--pill); color:var(--text);
     padding:9px 14px; border-radius:999px; cursor:pointer; font-weight:700; letter-spacing:.2px;
     transition:filter .15s ease, transform .06s ease, box-shadow .15s ease; }
-  .pill-btn:hover{ filter:brightness(1.1) } .pill-btn:active{ transform:translateY(1px) }
-  .pill-btn[aria-pressed="true"]{ outline:2px solid var(--accent); outline-offset:2px; box-shadow:0 0 0 4px rgba(112,192,255,.12) inset; }
+  .pill-btn:hover{ filter:brightness(1.08) } .pill-btn[aria-pressed="true"]{ outline:2px solid var(--accent); outline-offset:2px; }
 
-  .xlat-panel, .morph-panel{ display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:0; margin-top:8px; }
+  .xlat-panel, .morph-panel{ display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-top:8px; }
   .xlat-panel.open, .morph-panel.open{ display:block; }
   .x-head, .m-head{ padding:14px 18px; background:linear-gradient(180deg, var(--panel-head), rgba(255,255,255,0.04));
-    border-bottom:1px solid var(--line); border-radius:14px 14px 0 0; font-weight:800; letter-spacing:.2px; font-size:19px;
-    text-transform:lowercase; box-shadow:inset 0 1px 0 rgba(255,255,255,.03); }
+    border-bottom:1px solid var(--line); border-radius:14px 14px 0 0; font-weight:800; letter-spacing:.2px; font-size:19px; text-transform:lowercase; }
   .x-body, .m-body{ padding:12px 14px; }
-  .m-body{ overflow:auto; }
-
   .xlat-item{ display:grid; grid-template-columns: 160px 1fr; gap:12px; padding:6px 0; align-items:start; }
-  .xlat-item .lab{ font-weight:600; color:var(--accent) }
   .xlat-item + .xlat-item{ border-top:1px dashed var(--line); }
+  .lab{ font-weight:700; color:var(--accent) }
 
+  /* tabele morfologiczne */
   .morph-table{
     display:inline-table; width:max-content; table-layout:auto;
     border-collapse:separate; border-spacing:0; font-size:15px; margin:0 2px;
   }
   .morph-table th, .morph-table td{
-    border:1px solid #2b3a52; padding:6px 8px; vertical-align:middle; min-height:28px; font-size:inherit; white-space:nowrap;
+    border:1px solid #2b3a52; padding:6px 8px; vertical-align:middle; min-height:28px; white-space:nowrap;
   }
   .morph-table th{ text-align:center; background:#0f1520; color:var(--text); }
-  .morph-table td{ background:#141b26; }
-  .morph-table .cases{ font-style:italic; color:var(--text); }
+  .morph-table td{ background:#141b26; color:var(--text); }
+  .morph-table .cases{ font-style:italic; color:#ffffff; }
 
-  .topbar{ display:flex; gap:8px; align-items:center; justify-content:space-between; margin-top:8px; }
-  .small{ font-size:12px; color:var(--muted) } .count{ font-variant-numeric: tabular-nums; }
-
-  footer{
-    position:fixed; left:0; right:0; bottom:0; z-index:9;
-    background:linear-gradient(180deg, rgba(11,15,20,0), rgba(11,15,20,0.9));
-    border-top:1px solid var(--line);
-    text-align:center; font-style:italic; color:var(--muted);
-    padding:10px 16px;
-  }
-
-  @media (max-width:900px){
-    .row{ grid-template-columns: 1fr 1fr }
-    .search{ grid-column: 1 / -1 }
-    .btn-col{ min-width:unset }
-    .xlat-item{ grid-template-columns: 120px 1fr; }
-    .x-head,.m-head{ font-size:18px; }
-  }
-  @media (max-width:520px){ .logo img{ height:72px; } }
+  footer{ position:fixed; left:0; right:0; bottom:0; background:linear-gradient(180deg, rgba(11,15,20,0), rgba(11,15,20,.9));
+    border-top:1px solid var(--line); text-align:center; font-style:italic; color:var(--muted); padding:10px 16px; }
+  @media (max-width:900px){ .row{ grid-template-columns: 1fr 1fr } .search{ grid-column: 1 / -1 } .logo img{height:72px} }
 </style>
 </head>
 <body>
@@ -105,11 +79,11 @@
 <header>
   <div class="wrap">
     <div class="brand">
-      <div class="logo"><img src="image.png" alt="Logo Dictionarium Sanctae Marthae" /></div>
+      <div class="logo"><img src="image.png" alt="Logo"></div>
       <div>
         <h1>Dictionarium Sanctae Marthae</h1>
         <div class="row">
-          <select id="leftLang" class="select" title="Język po lewej (źródłowy)">
+          <select id="leftLang" class="select">
             <option value="SLA">Slavonica</option>
             <option value="RUS">Russica</option>
             <option value="ALB">Albaruthenica</option>
@@ -123,7 +97,7 @@
             <option value="MAC">Macedonica</option>
             <option value="BUL">Bulgarica</option>
           </select>
-          <select id="rightLang" class="select" title="Język po prawej (docelowy)">
+          <select id="rightLang" class="select">
             <option value="SLA" selected>Slavonica</option>
             <option value="RUS">Russica</option>
             <option value="ALB">Albaruthenica</option>
@@ -137,7 +111,7 @@
             <option value="MAC">Macedonica</option>
             <option value="BUL">Bulgarica</option>
           </select>
-          <label class="search" title="Szukaj prefiksu w kolumnie źródłowej">
+          <label class="search">
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23C15.99 6.01 13.32 3.34 9.99 3.34S4 6.01 4 9.34s2.67 6 5.99 6c1.61 0 3.09-.59 4.23-1.57l.27.28v.79L20 20.33 21.33 19 15.5 14Zm-5.51 0C7.47 14 6 12.53 6 10.84S7.47 7.68 9.99 7.68s3.99 1.47 3.99 3.16S12.52 14 9.99 14Z"/></svg>
             <input id="query" placeholder="Scribe initium verbi" autocomplete="off" />
           </label>
@@ -149,12 +123,12 @@
 </header>
 
 <main class="wrap">
-  <div id="status" class="status">Ładowanie danych z PDF…</div>
-  <div class="topbar" style="display:none" id="topbar">
+  <div id="status" class="status">Ładowanie danych…</div>
+  <div class="topbar" id="topbar" style="display:none">
     <div class="small">numerus verborum totus: <span class="count" id="countAll">0</span></div>
     <div class="small">numerus verborum quaesitorum: <span class="count" id="countShown">0</span></div>
   </div>
-  <div id="cards" class="cards"></div>
+  <div class="cards" id="cards"></div>
 </main>
 
 <footer>
@@ -163,226 +137,51 @@
 
 <script>
 (async function(){
-  /* aktualny PDF */
-  const PDF_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZoAolAWEBzbwXjPzA67tmva1TyOR2AYB-49vqXPo98MXodomWq2dGKGewO_z8-iZIYbr0x6Z5jbPP/pub?gid=0&single=true&output=pdf";
+  const XLSX_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZoAolAWEBzbwXjPzA67tmva1TyOR2AYB-49vqXPo98MXodomWq2dGKGewO_z8-iZIYbr0x6Z5jbPP/pub?output=xlsx";
 
+  const leftSel  = document.getElementById('leftLang');
+  const rightSel = document.getElementById('rightLang');
+  const queryInp = document.getElementById('query');
   const statusEl = document.getElementById('status');
   const cardsEl  = document.getElementById('cards');
   const topbar   = document.getElementById('topbar');
   const countAll = document.getElementById('countAll');
   const countShown = document.getElementById('countShown');
 
-  const leftSel  = document.getElementById('leftLang');
-  const rightSel = document.getElementById('rightLang');
-  const queryInp = document.getElementById('query');
-
   const DEFAULT_FALLBACK = "POL";
-  const debounce = (fn, d=200)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); }; };
 
-  const COMB_RE = /^[\u0300-\u036F\u02C7]+[;,.]?$/;
-  function normalizeCarons(s){
-    s = s.replace(/(\p{L})\s*[\u02C7]/gu, '$1\u030C').replace(/\u02C7/g, '\u030C');
-    return s;
-  }
-  function tidyCombiningSpaces(s){
-    s = s.replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+([\u0300-\u036F])/gu, '$1')
-         .replace(/([\u0300-\u036F])[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+/gu, '$1');
-    return s.normalize('NFC');
-  }
-  function mergeCombining(itemsSortedByX){
-    const out=[];
-    for(const it of itemsSortedByX){
-      if(out.length && COMB_RE.test(it.str)){ out[out.length-1].str += it.str; }
-      else out.push({str:it.str, x:it.x, y:it.y});
-    }
-    return out;
-  }
+  const langsOrder = ["SLA","PSL","0","I","II","III","IV","V","RUS","ALB","UCR","POL","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
 
-  function isNounLikePOS(pos){
-    const t = (pos||"").toLowerCase();
-    return /\b(nomen|nom\.?|n\.?|pronomen|pron\.?|adiectiv|adjectiv|adj\.?)\b/.test(t);
-  }
-  function isVerbPOS(pos){
-    const t=(pos||"").toLowerCase();
-    return /\b(verbum|verb|vb\.?|v\.?)\b/.test(t);
-  }
-  function splitGenderPrefix(s){
-    if(!s) return {gender:"", rest:""};
-    const m = s.match(/^\s*([mfn]\.(?:\s*\/\s*[mfn]\.)*)\s*[,;:\-]?\s*(.*)$/i);
-    if(m) return {gender:m[1].replace(/\s+/g,''), rest:m[2]||""};
-    return {gender:"", rest:s};
-  }
-  function countSemis(s){ return (s.match(/;/g)||[]).length; }
-
-  async function loadRecordsFromPdf(){
-    statusEl.textContent = "Ładowanie danych z PDF…";
-    cardsEl.innerHTML = ""; topbar.style.display = "none";
-
-    const url = PDF_URL + "&cb=" + Date.now();
-    const loadingTask = pdfjsLib.getDocument({ url, cMapPacked: true, useSystemFonts: true });
-    const pdf = await loadingTask.promise;
-
-    /* nagłówek wykrywamy po skrótach języków (bez PS i 0) */
-    const detectLabels = ["SLA","I","II","III","IV","V","RUS","ALB","UCR","POL","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
-
-    /* pełny porządek kolumn w rekordzie */
-    const fullOrder = ["SLA","PS","0","I","II","III","IV","V",
-                       "RUS","ALB","UCR","POL","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
-
-    let anchors = null; const records = [];
-
-    for(let p=1; p<=pdf.numPages; p++){
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      const raw = content.items.map(it=>{
-        const tx = it.transform[4], ty = it.transform[5];
-        return {str: (it.str||"").trim(), x: tx, y: ty};
-      }).filter(it=>it.str);
-
-      raw.sort((a,b)=> b.y - a.y || a.x - b.x);
-      const rows = []; const tolY = 3.5;
-      for(const it of raw){
-        let row = rows.length ? rows[rows.length-1] : null;
-        if(!row || Math.abs(row.y - it.y) > tolY) rows.push({ y: it.y, items:[it] });
-        else row.items.push(it);
-      }
-
-      for(const row of rows){
-        const joined = row.items.map(i=>i.str).join(" ");
-        const hits = detectLabels.filter(l=>joined.includes(l)).length;
-        if(hits >= 10){ /* dość, by uznać nagłówek */
-          const found = {};
-          for(const lab of detectLabels){
-            const cand = row.items.find(i => i.str === lab) || row.items.find(i => i.str.includes(lab));
-            if(cand) found[lab] = cand.x;
-          }
-          anchors = found; break;
-        }
-      }
-      if(!anchors) continue;
-
-      /* oszacuj PS (Protoslavica) i 0 między SLA a I */
-      if(Number.isFinite(anchors["SLA"]) && Number.isFinite(anchors["I"])){
-        const d = anchors["I"] - anchors["SLA"];
-        anchors["PS"] = anchors["SLA"] + d/3;
-        anchors["0"]  = anchors["SLA"] + 2*d/3;
-      }
-
-      const present = fullOrder.map(l=>({lab:l,x:anchors[l]})).filter(c=>Number.isFinite(c.x)).sort((a,b)=>a.x-b.x);
-      if(present.length && present.length < fullOrder.length){
-        const minX=present[0].x, maxX=present[present.length-1].x;
-        const step=(maxX-minX)/(fullOrder.length-1||1), have=new Set(present.map(c=>c.lab));
-        for(let i=0;i<fullOrder.length;i++){ const lab=fullOrder[i]; if(!have.has(lab)) present.push({lab, x:minX+step*i}); }
-        present.sort((a,b)=>a.x-b.x);
-      }
-      const boundaries=[]; for(let i=0;i<present.length-1;i++) boundaries.push((present[i].x+present[i+1].x)/2);
-      function colByX(x){
-        for(let i=0;i<present.length;i++){
-          const L=i===0?-Infinity:boundaries[i-1], R=i===present.length-1?Infinity:boundaries[i];
-          if(x>=L && x<R) return present[i].lab;
-        } return "SLA";
-      }
-
-      for(const row of rows){
-        const joined = row.items.map(i=>i.str).join(" ");
-        if(detectLabels.filter(l=>joined.includes(l)).length >= 10) continue;
-
-        const merged = mergeCombining(row.items.slice().sort((a,b)=>a.x-b.x));
-        const rec = {SLA:"", PS:"", "0":"", I:"", II:"", III:"", IV:"", V:"",
-                     RUS:"", ALB:"", UCR:"", POL:"", SLO:"", BOH:"", SLV:"", CRO:"", SER:"", MAC:"", BUL:""};
-        const buckets = {SLA:[], PS:[], "0":[], I:[], II:[], III:[], IV:[], V:[],
-                         RUS:[], ALB:[], UCR:[], POL:[], SLO:[], BOH:[], SLV:[], CRO:[], SER:[], MAC:[], BUL:[]};
-
-        for(const it of merged){ buckets[colByX(it.x)].push(it.str); }
-        for(const k of Object.keys(rec)){
-          const str = (buckets[k]||[]).join(" ").replace(/\s+/g," ").trim();
-          rec[k] = tidyCombiningSpaces(normalizeCarons(str));
-        }
-
-        if(isNounLikePOS(rec.I)){
-          const ivSemi = countSemis(rec.IV);
-          const vSemi  = countSemis(rec.V);
-          if(ivSemi>0 && vSemi>0){ rec.V = `${rec.IV} ${rec.V}`.replace(/\s+/g,' ').trim(); rec.IV = ""; }
-          let {gender:g1, rest:ivRest} = splitGenderPrefix(rec.IV);
-          if(ivRest && ivRest.includes(";")){ rec.V = [ivRest, rec.V].filter(Boolean).join(" ").trim(); ivRest = ""; }
-          let {gender:g2, rest:vRest} = splitGenderPrefix(rec.V);
-          const genus = [g1, g2].filter(Boolean).join(" ");
-          rec.IV = tidyCombiningSpaces(normalizeCarons([genus, ivRest].filter(Boolean).join(" ").trim()));
-          rec.V  = tidyCombiningSpaces(normalizeCarons(vRest.trim()));
-          const leadQual = rec.V.match(/^\s*(anim\.|inan\.)\s*/i);
-          if(leadQual){
-            rec.IV = tidyCombiningSpaces(normalizeCarons([rec.IV, leadQual[1]].filter(Boolean).join(" ").trim()));
-            rec.V  = rec.V.replace(/^\s*(anim\.|inan\.)\s*/i,'').trim();
-          }
-        }
-
-        if(isVerbPOS(rec.I)){
-          const m = rec.IV.match(/\b(impf\.?|perf\.?)\b/i);
-          if(m){
-            const aspect = m[1].toLowerCase().startsWith('impf') ? 'impf.' : 'perf.';
-            let rest = rec.IV.slice(m.index + m[0].length);
-            rest = rest.replace(/^[\s:;,.\-–—]+/,'').trim();
-            rec.IV = aspect;
-            if(rest){ rec.V = [rest, rec.V].filter(Boolean).join(rec.V ? '; ' : ''); }
-          }
-        }
-
-        if(Object.values(rec).some(v=>v)) records.push(rec);
-      }
-    }
-
-    const key = r => [
-      r.SLA,r.PS,r["0"],r.I,r.II,r.III,r.IV,r.V,
-      r.RUS,r.ALB,r.UCR,r.POL,r.SLO,r.BOH,r.SLV,r.CRO,r.SER,r.MAC,r.BUL
-    ].join("¦");
-    const map = new Map(); for(const r of records){ if(!map.has(key(r))) map.set(key(r), r); }
-    const final = Array.from(map.values());
-
-    countAll.textContent = final.length;
-    topbar.style.display = "flex";
-    statusEl.textContent = "";
-    return final;
-  }
-
-  const data = await loadRecordsFromPdf().catch(err=>{
-    console.error(err);
-    statusEl.innerHTML = "Nie udało się wczytać PDF (CORS / format).";
-    return [];
-  });
-
+  function debounce(fn, d=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); } }
   function normalize(s){ return (s||"").toLowerCase().trim(); }
-  function prefixMatch(cell, q){
-    if(!cell || !q) return false;
-    const parts = cell.split(/[,;|/]/g).map(s=>s.trim()).filter(Boolean);
-    if(parts.length===0) parts.push(cell.trim());
-    const qn = normalize(q);
-    return parts.some(p => normalize(p).startsWith(qn));
-  }
+  function prefixMatch(cell,q){ if(!cell||!q) return false; return normalize(cell).split(/[,;/|]/).some(p=>p.trim().startsWith(normalize(q))); }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
-  function closeAllPanels(){
-    document.querySelectorAll('.xlat-panel.open, .morph-panel.open').forEach(p => p.classList.remove('open'));
-    document.querySelectorAll('.pill-btn[aria-pressed="true"]').forEach(b => b.setAttribute('aria-pressed','false'));
-  }
+  // POS helpers
+  function isVerbPOS(pos){ return /\b(verbum|vb\.?|v\.?)\b/i.test(pos||""); }
+  function isAdjPOS(pos){ return /\b(adiectiv|adjectiv|adj\.?)\b/i.test(pos||""); }
+  function isNounPOS(pos){ return /\b(nomen|nom\.?|n\.?)\b/i.test(pos||""); }
+  function isPronPOS(pos){ return /\b(pronomen|pron\.?)\b/i.test(pos||""); }
 
+  // aspect label for verbs
+  function aspectOnly(iv){ const m=(iv||"").match(/\b(impf\.?|perf\.?)\b/i); if(!m) return ""; return m[1].toLowerCase().startsWith('impf')?'impf.':'perf.'; }
+
+  // Parse V list into fixed-length array
   function parseV(vStr, len){
-    const parts = (vStr||"").split(";").map(s=>s.trim()).filter(s=>s.length||s==="");
+    const parts = String(vStr||"").split(";").map(s=>s.trim());
     const out = new Array(len).fill("—");
-    for(let i=0;i<Math.min(parts.length,len);i++) out[i]=parts[i];
+    for(let i=0;i<Math.min(parts.length,len);i++){ out[i] = parts[i] || "—"; }
     return out;
   }
 
-  /* ——— Noun/Pron/Adj/Verb tables (jak poprzednio) ——— */
+  // Morphology tables
   function buildNounLikeTable(vStr){
+    // 16 slots: Nom S; Acc S; Gen S; Loc S; Dat S; Instr S; Voc S; Nom/Acc/Voc D; Gen/Loc D; Dat/Instr D; Nom/Voc P; Acc P; Gen P; Loc P; Dat P; Instr P
     const v = parseV(vStr, 16);
     const cases = ["Nominativus","Accusativus","Genetivus","Locativus","Dativus","Instrumentalis","Vocativus"];
     const table = document.createElement('table'); table.className='morph-table';
     const thead = document.createElement('thead');
-    thead.innerHTML = `<tr>
-      <th class="cases"> </th>
-      <th>Singularis</th>
-      <th>Dualis</th>
-      <th>Pluralis</th>
-    </tr>`;
+    thead.innerHTML = `<tr><th class="cases"> </th><th>Singularis</th><th>Dualis</th><th>Pluralis</th></tr>`;
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
@@ -392,353 +191,334 @@
 
     cases.forEach((c, i)=>{
       const tr = document.createElement('tr');
-      const tdLabel = document.createElement('td'); tdLabel.textContent = c; tdLabel.className = 'cases'; tr.appendChild(tdLabel);
-      const tdS = document.createElement('td'); tdS.textContent = v[S[i]]; tr.appendChild(tdS);
-      if(i===0){ const td=document.createElement('td'); td.textContent=Dn; td.rowSpan=2; tr.appendChild(td); }
-      else if(i===2){ const td=document.createElement('td'); td.textContent=Dgl; td.rowSpan=2; tr.appendChild(td); }
-      else if(i===4){ const td=document.createElement('td'); td.textContent=Ddi; td.rowSpan=2; tr.appendChild(td); }
-      else if(i===6){ const td=document.createElement('td'); td.textContent=Dn; tr.appendChild(td); }
-      const tdP = document.createElement('td'); tdP.textContent = v[P[i]]; tr.appendChild(tdP);
+      tr.appendChild(tdLabel(c));
+      tr.appendChild(td(v[S[i]]));
+      if(i===0){ const t=td(Dn); t.rowSpan=2; tr.appendChild(t); }
+      else if(i===2){ const t=td(Dgl); t.rowSpan=2; tr.appendChild(t); }
+      else if(i===4){ const t=td(Ddi); t.rowSpan=2; tr.appendChild(t); }
+      else if(i===6){ tr.appendChild(td(Dn)); }
+      tr.appendChild(td(v[P[i]]));
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
     return table;
+
+    function tdLabel(txt){ const x=document.createElement('td'); x.className='cases'; x.textContent=txt; return x; }
+    function td(val){ const x=document.createElement('td'); x.textContent=val && val.length?val:'—'; return x; }
   }
 
-  const aspectOnly = (iv)=>{ const m=(iv||"").match(/\b(impf\.?|perf\.?)\b/i); if(!m) return (iv||"").trim(); return m[1].toLowerCase().startsWith('impf')?'impf.':'perf.'; };
-
   function buildAdjTable(vStr){
+    // 25 pozycji wg ustalonej kolejności
     const v = parseV(vStr, 25);
-    const g = (i)=>v[i-1]||'—';
+    const g = i => v[i-1] || '—';
 
     const table = document.createElement('table'); table.className='morph-table';
     const tbody = document.createElement('tbody');
 
+    // cechy
     tbody.appendChild(rowHead(['Indefinitum','Adverbium','Comparativus','Superlativus']));
     { const tr=document.createElement('tr'); tr.append(td(g(1)), td(g(2)), td(g(3)), td(g(4))); tbody.appendChild(tr); }
 
-    tbody.appendChild(sectionHeaderRow('Singularis',5));
+    // Singularis
+    tbody.appendChild(sectionRow('Singularis',5));
     tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Nominativus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Nominativus'));
       const left=document.createElement('td'); left.colSpan=2; left.textContent=g(5); tr.appendChild(left);
       tr.append(td(g(10)), td(g(11))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Accusativus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Accusativus'));
       tr.append(td(g(6)), td(g(5)), td(g(10)), td(g(12))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Genetivus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Genetivus'));
       const left=document.createElement('td'); left.colSpan=3; left.textContent=g(6); tr.appendChild(left);
       tr.append(td(g(13))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Locativus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Locativus'));
       const left=document.createElement('td'); left.colSpan=3; left.textContent=g(7); tr.appendChild(left);
       tr.append(td(g(14))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Dativus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Dativus'));
       const left=document.createElement('td'); left.colSpan=3; left.textContent=g(8); tr.appendChild(left);
       tr.append(td(g(14))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Instrumentalis'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Instrumentalis'));
       const left=document.createElement('td'); left.colSpan=3; left.textContent=g(9); tr.appendChild(left);
       tr.append(td(g(15))); tbody.appendChild(tr); }
 
-    tbody.appendChild(sectionHeaderRow('Dualis',5));
+    // Dualis
+    tbody.appendChild(sectionRow('Dualis',5));
     tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Nom., Acc.'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Nom., Acc.'));
       const a=document.createElement('td'); a.colSpan=2; a.textContent=g(16); tr.appendChild(a);
-      const b=document.createElement('td'); b.colSpan=2; b.textContent=g(19); tr.appendChild(b);
-      tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Gen., Loc.'));
+      const b=document.createElement('td'); b.colSpan=2; b.textContent=g(19); tr.appendChild(b); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Gen., Loc.'));
       const one=document.createElement('td'); one.colSpan=4; one.textContent=g(17); tr.appendChild(one); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Dat., Instr.'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Dat., Instr.'));
       const one=document.createElement('td'); one.colSpan=4; one.textContent=g(18); tr.appendChild(one); tbody.appendChild(tr); }
 
-    tbody.appendChild(sectionHeaderRow('Pluralis',5));
+    // Pluralis
+    tbody.appendChild(sectionRow('Pluralis',5));
     tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Nominativus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Nominativus'));
       tr.append(td(g(20)), td(g(21)), td(g(25)), td(g(21))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Accusativus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Accusativus'));
       const left=document.createElement('td'); left.colSpan=2; left.textContent=g(21); tr.appendChild(left);
       tr.append(td(g(25)), td(g(21))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Genetivus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Genetivus'));
       const one=document.createElement('td'); one.colSpan=4; one.textContent=g(22); tr.appendChild(one); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Locativus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Locativus'));
       const one=document.createElement('td'); one.colSpan=4; one.textContent=g(22); tr.appendChild(one); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Dativus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Dativus'));
       const one=document.createElement('td'); one.colSpan=4; one.textContent=g(23); tr.appendChild(one); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.appendChild(tdLabel('Instrumentalis'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Instrumentalis'));
       const one=document.createElement('td'); one.colSpan=4; one.textContent=g(24); tr.appendChild(one); tbody.appendChild(tr); }
 
     table.appendChild(tbody);
     return table;
 
-    function sectionHeaderRow(t, span){
-      const tr=document.createElement('tr'); const th=document.createElement('th');
-      th.textContent=t; th.colSpan=span; tr.appendChild(th); return tr;
-    }
-    function rowHead(labels, firstIsCases=false){
-      const tr=document.createElement('tr');
-      labels.forEach((lab,i)=>{
-        const th=document.createElement('th');
-        th.textContent = firstIsCases && i===0 ? ' ' : lab;
-        if(firstIsCases && i===0) th.className='cases';
-        tr.appendChild(th);
-      });
-      return tr;
-    }
     function tdLabel(txt){ const x=document.createElement('td'); x.className='cases'; x.textContent=txt; return x; }
-    function td(val){ const x=document.createElement('td'); x.textContent=(val&&val.length)?val:'—'; return x; }
+    function td(val){ const x=document.createElement('td'); x.textContent=val && val.length?val:'—'; return x; }
+    function sectionRow(t, span){ const tr=document.createElement('tr'); const th=document.createElement('th'); th.textContent=t; th.colSpan=span; tr.appendChild(th); return tr; }
+    function rowHead(labels, firstIsCases=false){ const tr=document.createElement('tr'); labels.forEach((lab,i)=>{ const th=document.createElement('th'); th.textContent = firstIsCases&&i===0?' ':lab; if(firstIsCases&&i===0) th.className='cases'; tr.appendChild(th); }); return tr; }
   }
 
   function buildVerbTable(aspectStr, vStr){
+    // 30 slotów wg ustaleń (Impf: Incipere widoczne; Perf: bez Incipere, Participia Praesens->Futurum)
     const isImpf = /\bimpf\.?\b/i.test(aspectStr||"");
     const base = parseV(vStr, 30);
-    const v = isImpf ? base : ["", ...base];
+    const v = isImpf ? base : ["", ...base]; // wyrównanie slotów
 
     const table = document.createElement('table'); table.className='morph-table';
-
     const thead = document.createElement('thead');
-    const topCols = isImpf
-      ? ['Incipere','Infinitivus','Supinum','Nomen verbi']
-      : ['', 'Infinitivus','Supinum','Nomen verbi'];
+    const topCols = isImpf ? ['Incipere','Infinitivus','Supinum','Nomen verbi'] : ['', 'Infinitivus','Supinum','Nomen verbi'];
     thead.appendChild(rowFrom(topCols, 'th'));
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
     const slots=[];
 
+    // wiersz inicjalny
     { const tr = document.createElement('tr');
       const t0=document.createElement('td'), t1=document.createElement('td'),
             t2=document.createElement('td'), t3=document.createElement('td');
       tr.append(t0,t1,t2,t3); tbody.appendChild(tr);
       slots.push(t0,t1,t2,t3); }
 
+    // Participia
     tbody.appendChild(sectionHeaderRow('Participia', 3));
     { const tr=document.createElement('tr');
       const thEmpty=document.createElement('th'); thEmpty.className='cases'; thEmpty.textContent=' '; tr.appendChild(thEmpty);
       const th1=document.createElement('th'); th1.textContent='Praeteritum'; tr.appendChild(th1);
       const th2=document.createElement('th'); th2.textContent=isImpf?'Praesens':'Futurum'; tr.appendChild(th2);
       tbody.appendChild(tr); }
-    { const tr=document.createElement('tr');
-      const l=document.createElement('td'); l.textContent='Perfectivum'; l.className='cases'; tr.appendChild(l);
-      const t=document.createElement('td'); t.colSpan=2; tr.appendChild(t); tbody.appendChild(tr);
-      slots.push(t); }
-    { const tr=document.createElement('tr');
-      const l=document.createElement('td'); l.textContent='Activum'; l.className='cases'; tr.appendChild(l);
-      const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr);
-      slots.push(a,b);}
-    { const tr=document.createElement('tr');
-      const l=document.createElement('td'); l.textContent='Passivum'; l.className='cases'; tr.appendChild(l);
-      const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr);
-      slots.push(a,b);}
+    { const tr=document.createElement('tr'); tr.append(tdLab('Perfectivum')); const t=document.createElement('td'); t.colSpan=2; tr.appendChild(t); tbody.appendChild(tr); slots.push(t); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Activum')); const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr); slots.push(a,b); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Passivum')); const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr); slots.push(a,b); }
 
+    // Praesens
     tbody.appendChild(sectionHeaderRow('Praesens', 4));
     tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
-    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'),
-        td(), td(), td()); tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2],tr.children[3]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'),
-        td(), td(2)); tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'),
-        td(), td(), td()); tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2],tr.children[3]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
 
-    const tenseBlock = /\bimpf\.?\b/i.test(aspectStr||"") ? 'Imperfectum' : 'Aoristus';
+    // Imperfectum / Aoristus
+    const tenseBlock = isImpf ? 'Imperfectum' : 'Aoristus';
     tbody.appendChild(sectionHeaderRow(tenseBlock, 4));
     tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
-    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'),
-        td(), td(), td()); tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2],tr.children[3]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'),
-        td(), td(2)); tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'),
-        td(), td(), td()); tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2],tr.children[3]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
 
+    // Imperativus
     tbody.appendChild(sectionHeaderRow('Imperativus', 4));
     tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
-    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'),
-        td(), td(2)); tbody.appendChild(tr);
-      slots.push(tr.children[2]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'),
-        td(), td(), td()); tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'),
-        td(), td(), td()); tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
 
     table.appendChild(tbody);
-
+    // wypełnij komórki
     slots.forEach((cell, i)=>{ cell.textContent = v[i] || (i===0 ? "" : "—"); });
     return table;
 
-    function sectionHeaderRow(title, span){
-      const tr=document.createElement('tr');
-      const th=document.createElement('th'); th.textContent=title; th.colSpan=span;
-      tr.appendChild(th); return tr;
-    }
-    function rowFrom(labels, tag='td', italicFirst=false){
-      const tr=document.createElement('tr');
-      labels.forEach((lab,i)=>{
-        const el=document.createElement(tag);
-        if(italicFirst && i===0){ el.className='cases'; el.textContent=' '; }
-        else el.textContent=lab;
-        tr.appendChild(el);
-      });
-      return tr;
-    }
+    function sectionHeaderRow(title, span){ const tr=document.createElement('tr'); const th=document.createElement('th'); th.textContent=title; th.colSpan=span; tr.appendChild(th); return tr; }
+    function rowFrom(labels, tag='td', italicFirst=false){ const tr=document.createElement('tr'); labels.forEach((lab,i)=>{ const el=document.createElement(tag); if(italicFirst && i===0){ el.className='cases'; el.textContent=' '; } else el.textContent=lab; tr.appendChild(el); }); return tr; }
     function td(colSpan=1){ const x=document.createElement('td'); if(colSpan>1) x.colSpan=colSpan; return x; }
     function tdLab(txt){ const x=document.createElement('td'); x.textContent=txt; x.className='cases'; return x; }
   }
 
-  function render(){
-    const left = leftSel.value, right = rightSel.value, q = queryInp.value.trim();
-    let rows = data;
-    if(q){ rows = rows.filter(r => prefixMatch(r[left], q)); }
+  // Load XLSX
+  async function loadXLSX(){
+    statusEl.textContent = "Ładowanie danych z XLSX…";
+    const buf = await fetch(XLSX_URL, {cache: "no-store"}).then(r=>r.arrayBuffer());
+    const wb  = XLSX.read(new Uint8Array(buf), { type: "array" });
+    const ws  = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval:"", raw:true });
 
-    cardsEl.innerHTML = "";
-    countShown.textContent = rows.length;
+    const normKey = k => (k||"").toString().trim().toUpperCase();
 
-    if(!q){
-      if(data.length){
-        statusEl.innerHTML = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias.";
-      }
-      return;
-    } else { statusEl.textContent = ""; }
-
-    rows = rows.slice().sort((a,b)=> (a[right]||"").localeCompare(b[right]||""));
-
-    rows.forEach((r)=>{
-      const card = document.createElement('div'); card.className='card';
-      const head = document.createElement('div'); head.className='head';
-
-      const word = document.createElement('div'); word.className='word';
-      const base = (r[right] || "(brak)").trim();
-      word.append(document.createTextNode(base));
-      if(r["0"]){ const br=document.createElement('span'); br.className='bracket'; br.textContent=`[${r["0"]}]`; word.append(br); }
-      head.appendChild(word);
-
-      const meta = document.createElement('div'); meta.className='meta';
-      const posNorm = (r.I || "").toLowerCase().replace(/\s+/g,' ').trim();
-      const isVerb = isVerbPOS(posNorm);
-      const isAdj  = /\b(adiectiv(?:um|e)?|adjectiv(?:um|e)?|adj\.?)\b/.test(posNorm);
-      const isNoun = /\b(nomen|nom\.?|n\.?|noun|substantiv(?:um|e)?|subst\.?)\b/.test(posNorm);
-      const isPron = /\b(pronomen|pron\.?)\b/.test(posNorm);
-      const morphAllowed = isVerb || isAdj || isNoun || isPron;
-
-      const labelIV = isVerb ? "aspectus" : (isAdj ? "gradus comparativus" : "genus");
-      const ivDisplay = isVerb ? aspectOnly(r.IV) : r.IV;
-
-      [
-        ["pars orationis", r.I],
-        ["paradigma accentualia", r.II],
-        ["exemplum", r.III],
-        [labelIV, ivDisplay]
-      ].forEach(([lab, val])=>{
-        if(!val) return;
-        const chip=document.createElement('span'); chip.className='chip';
-        chip.textContent = lab ? `${lab}: ${val}` : val;
-        meta.appendChild(chip);
-      });
-      head.appendChild(meta);
-
-      const btnCol = document.createElement('div'); btnCol.className='btn-col';
-      const btnTrans = document.createElement('button');
-      btnTrans.className='pill-btn'; btnTrans.type='button';
-      btnTrans.textContent='translationes';
-      btnTrans.setAttribute('aria-pressed','false');
-      btnCol.appendChild(btnTrans);
-
-      let mPanel = null, btnMorph = null;
-      if(morphAllowed){
-        btnMorph = document.createElement('button');
-        btnMorph.className='pill-btn'; btnMorph.type='button';
-        btnMorph.textContent = isVerb ? 'coniugatio' : 'declinatio';
-        btnMorph.setAttribute('aria-pressed','false');
-        btnCol.appendChild(btnMorph);
-
-        mPanel = document.createElement('div'); mPanel.className='morph-panel';
-        const mHead  = document.createElement('div'); mHead.className='m-head';
-        mHead.textContent = isVerb ? 'coniugatio' : 'declinatio';
-        const mBody  = document.createElement('div'); mBody.className='m-body';
-        const table = isVerb ? buildVerbTable(ivDisplay, r.V)
-                             : (isAdj ? buildAdjTable(r.V) : buildNounLikeTable(r.V));
-        mBody.appendChild(table);
-        mPanel.appendChild(mHead); mPanel.appendChild(mBody);
-      }
-
-      card.appendChild(head);
-      card.appendChild(btnCol);
-      cardsEl.appendChild(card);
-
-      /* panel tłumaczeń z nowymi językami + Protoslavica */
-      const xPanel = document.createElement('div');
-      xPanel.className = 'xlat-panel';
-      xPanel.innerHTML = `
-        <div class="x-head">translationes</div>
-        <div class="x-body">
-          <div class="xlat-item"><div class="lab">Slavonica</div><div class="val">${r.SLA || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Protoslavica</div><div class="val">${r.PS || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Russica</div><div class="val">${r.RUS || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Albaruthenica</div><div class="val">${r.ALB || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Ucrainica</div><div class="val">${r.UCR || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Polonica</div><div class="val">${r.POL || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Slovaca</div><div class="val">${r.SLO || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Bohemica</div><div class="val">${r.BOH || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Slovena</div><div class="val">${r.SLV || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Croatica</div><div class="val">${r.CRO || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Serbica</div><div class="val">${r.SER || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Macedonica</div><div class="val">${r.MAC || "—"}</div></div>
-          <div class="xlat-item"><div class="lab">Bulgarica</div><div class="val">${r.BUL || "—"}</div></div>
-        </div>`;
-      cardsEl.appendChild(xPanel);
-
-      if(mPanel){ cardsEl.appendChild(mPanel); }
-
-      btnTrans.addEventListener('click', ()=>{
-        const open = !xPanel.classList.contains('open');
-        closeAllPanels();
-        if(open){
-          xPanel.classList.add('open');
-          btnTrans.setAttribute('aria-pressed','true');
-          xPanel.scrollIntoView({behavior:'smooth', block:'nearest'});
-        }
-      });
-      if(btnMorph){
-        btnMorph.addEventListener('click', ()=>{
-          const open = !mPanel.classList.contains('open');
-          closeAllPanels();
-          if(open){
-            mPanel.classList.add('open');
-            btnMorph.setAttribute('aria-pressed','true');
-            mPanel.scrollIntoView({behavior:'smooth', block:'nearest'});
-          }
-        });
-      }
-    });
+    const out=[];
+    for(const r of rows){
+      const rec = {};
+      for(const k of Object.keys(r)){ rec[normKey(k)] = (r[k] ?? "").toString().trim(); }
+      const row = {
+        SLA: rec["SLA"]||"",
+        PSL: rec["PSL"]||"",
+        "0": rec["0"]||"",
+        I: rec["I"]||"",
+        II: rec["II"]||"",
+        III: rec["III"]||"",
+        IV: rec["IV"]||"",
+        V: rec["V"]||"",
+        RUS: rec["RUS"]||"",
+        ALB: rec["ALB"]||"",
+        UCR: rec["UCR"]||"",
+        POL: rec["POL"]||"",
+        SLO: rec["SLO"]||"",
+        BOH: rec["BOH"]||"",
+        SLV: rec["SLV"]||"",
+        CRO: rec["CRO"]||"",
+        SER: rec["SER"]||"",
+        MAC: rec["MAC"]||"",
+        BUL: rec["BUL"]||""
+      };
+      if(langsOrder.some(k=>row[k])) out.push(row);
+    }
+    countAll.textContent = out.length;
+    topbar.style.display = "flex";
+    statusEl.textContent = "";
+    return out;
   }
 
-  /* Slavonica – zawsze po jednej stronie */
+  const data = await loadXLSX().catch(e=>{ console.error(e); statusEl.textContent="Nie udało się wczytać XLSX."; return []; });
+
+  // Slavonica – zawsze po jednej stronie
   let lastLeft = leftSel.value, lastRight = rightSel.value;
   function enforceSlavonica(trigger){
     const prevLeft = lastLeft, prevRight = lastRight;
     let L = leftSel.value, R = rightSel.value;
-
     if(trigger === 'left'){
       if(R === 'SLA' && L === 'SLA'){ rightSel.value = prevLeft && prevLeft !== 'SLA' ? prevLeft : DEFAULT_FALLBACK; }
       else if(L !== 'SLA' && R !== 'SLA'){ rightSel.value = 'SLA'; }
-    } else if(trigger === 'right'){
+    } else {
       if(L === 'SLA' && R === 'SLA'){ leftSel.value = prevRight && prevRight !== 'SLA' ? prevRight : DEFAULT_FALLBACK; }
       else if(L !== 'SLA' && R !== 'SLA'){ leftSel.value = 'SLA'; }
     }
     lastLeft = leftSel.value; lastRight = rightSel.value;
-    closeAllPanels(); render();
+    closePanels(); render();
   }
 
-  leftSel.addEventListener('change', ()=>{ enforceSlavonica('left'); });
-  rightSel.addEventListener('change', ()=>{ enforceSlavonica('right'); });
-  queryInp.addEventListener('input', debounce(render, 120));
-
-  if(data.length){
-    statusEl.innerHTML = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias.";
+  function closePanels(){
+    document.querySelectorAll('.xlat-panel.open, .morph-panel.open').forEach(p=>p.classList.remove('open'));
+    document.querySelectorAll('.pill-btn[aria-pressed="true"]').forEach(b=>b.setAttribute('aria-pressed','false'));
   }
+
+  function render(){
+    const L = leftSel.value, R = rightSel.value, q = queryInp.value.trim();
+    let rows = data;
+    if(q) rows = rows.filter(r => prefixMatch(r[L], q));
+    cardsEl.innerHTML = "";
+    countShown.textContent = rows.length;
+
+    if(!q){ statusEl.textContent = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias."; return; }
+    statusEl.textContent = "";
+
+    rows.forEach(r=>{
+      const card = document.createElement('div'); card.className='card';
+      const head = document.createElement('div'); head.className='head';
+
+      // lemma
+      const word = document.createElement('div'); word.className='word';
+      const lemma = (r[R]||"(brak)").trim();
+      word.append(document.createTextNode(lemma));
+      if(r["0"]){ const br=document.createElement('span'); br.className='bracket'; br.textContent=`[${r["0"]}]`; word.append(br); }
+      head.appendChild(word);
+
+      // meta chips (bez V)
+      const meta = document.createElement('div'); meta.className='meta';
+      const pos = (r.I||"");
+      const chips = [
+        ["pars orationis", r.I],
+        ["paradigma accentualia", r.II],
+        ["exemplum", r.III],
+        [ isVerbPOS(pos) ? "aspectus" : (isAdjPOS(pos) ? "gradus comparativus" : "genus"), isVerbPOS(pos) ? aspectOnly(r.IV) : r.IV ]
+      ];
+      chips.forEach(([lab,val])=>{
+        if(!val) return;
+        const s=document.createElement('span'); s.className='chip'; s.textContent = `${lab}: ${val}`; meta.appendChild(s);
+      });
+      head.appendChild(meta);
+
+      // buttons
+      const btnCol=document.createElement('div'); btnCol.className='btn-col';
+      const bT=document.createElement('button'); bT.className='pill-btn'; bT.textContent='translationes'; bT.setAttribute('aria-pressed','false');
+      btnCol.appendChild(bT);
+
+      // morph button only for nomen/nom./n., pronomen, adiectivum, verbum
+      const allowMorph = isNounPOS(pos) || isPronPOS(pos) || isAdjPOS(pos) || isVerbPOS(pos);
+      let bM=null, mPanel=null;
+      if(allowMorph){
+        bM=document.createElement('button'); bM.className='pill-btn'; bM.textContent = isVerbPOS(pos) ? 'coniugatio' : 'declinatio';
+        bM.setAttribute('aria-pressed','false'); btnCol.appendChild(bM);
+
+        // morph panel
+        mPanel=document.createElement('div'); mPanel.className='morph-panel';
+        const mHead=document.createElement('div'); mHead.className='m-head'; mHead.textContent = isVerbPOS(pos) ? 'coniugatio' : 'declinatio';
+        const mBody=document.createElement('div'); mBody.className='m-body';
+        const table = isVerbPOS(pos) ? buildVerbTable(aspectOnly(r.IV), r.V)
+                                     : (isAdjPOS(pos) ? buildAdjTable(r.V) : buildNounLikeTable(r.V));
+        mBody.appendChild(table); mPanel.appendChild(mHead); mPanel.appendChild(mBody);
+      }
+
+      card.appendChild(head); card.appendChild(btnCol);
+      cardsEl.appendChild(card);
+
+      // translation panel (Protoslavica included)
+      const x = document.createElement('div'); x.className='xlat-panel';
+      x.innerHTML = `
+        <div class="x-head">translationes</div>
+        <div class="x-body">
+          ${langRow('Slavonica', r.SLA)}
+          ${langRow('Protoslavica', r.PSL)}
+          ${langRow('Russica', r.RUS)}
+          ${langRow('Albaruthenica', r.ALB)}
+          ${langRow('Ucrainica', r.UCR)}
+          ${langRow('Polonica', r.POL)}
+          ${langRow('Slovaca', r.SLO)}
+          ${langRow('Bohemica', r.BOH)}
+          ${langRow('Slovena', r.SLV)}
+          ${langRow('Croatica', r.CRO)}
+          ${langRow('Serbica', r.SER)}
+          ${langRow('Macedonica', r.MAC)}
+          ${langRow('Bulgarica', r.BUL)}
+        </div>`;
+      cardsEl.appendChild(x);
+      if(mPanel) cardsEl.appendChild(mPanel);
+
+      // interactions: mutually exclusive
+      bT.addEventListener('click', ()=>{
+        const open = !x.classList.contains('open');
+        closePanels();
+        if(open){ x.classList.add('open'); bT.setAttribute('aria-pressed','true'); x.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+      });
+      if(bM){
+        bM.addEventListener('click', ()=>{
+          const open = !mPanel.classList.contains('open');
+          closePanels();
+          if(open){ mPanel.classList.add('open'); bM.setAttribute('aria-pressed','true'); mPanel.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+        });
+      }
+
+      function langRow(name, val){
+        const v = (val && String(val).trim().length) ? String(val).trim() : "—";
+        return `<div class="xlat-item"><div class="lab">${name}</div><div class="val">${escapeHtml(v)}</div></div>`;
+      }
+    });
+  }
+
+  // events
+  leftSel.addEventListener('change', ()=>enforceSlavonica('left'));
+  rightSel.addEventListener('change', ()=>enforceSlavonica('right'));
+  queryInp.addEventListener('input', debounce(()=>{ closePanels(); render(); },120));
+
+  // start
+  if(data.length){ statusEl.textContent = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias."; }
 })();
 </script>
 </body>
