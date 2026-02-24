@@ -30,7 +30,7 @@
   .search{display:flex; align-items:center; gap:8px}
   .search input{ all:unset; width:100%; font-size:15px; line-height:22px; }
   .hint{font-size:12px; color:var(--muted); margin-top:6px}
-  main{padding:12px 16px 80px}
+  main{padding:12px 16px 90px}
   .status{color:var(--muted); padding:16px}
   .topbar{ display:flex; gap:8px; align-items:center; justify-content:space-between; margin-top:8px; }
   .small{ font-size:12px; color:var(--muted) } .count{ font-variant-numeric: tabular-nums; }
@@ -42,17 +42,18 @@
   .bracket{ color:var(--muted); font-weight:400; }
   .meta{ display:flex; flex-wrap:wrap; gap:6px; }
   .chip{ background:var(--chip); border:1px solid var(--chip-b); padding:4px 8px; border-radius:999px; font-size:12px; color:var(--muted); }
+
   .btn-col{ display:flex; flex-direction:column; gap:8px; align-items:stretch; min-width:170px; }
   .pill-btn{ appearance:none; border:1px solid var(--pill-b); background:var(--pill); color:var(--text);
     padding:9px 14px; border-radius:999px; cursor:pointer; font-weight:700; letter-spacing:.2px;
     transition:filter .15s ease, transform .06s ease, box-shadow .15s ease; }
   .pill-btn:hover{ filter:brightness(1.08) } .pill-btn[aria-pressed="true"]{ outline:2px solid var(--accent); outline-offset:2px; }
 
-  .xlat-panel, .morph-panel{ display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-top:8px; }
-  .xlat-panel.open, .morph-panel.open{ display:block; }
-  .x-head, .m-head{ padding:14px 18px; background:linear-gradient(180deg, var(--panel-head), rgba(255,255,255,0.04));
+  .xlat-panel, .morph-panel, .sig-panel{ display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-top:8px; }
+  .xlat-panel.open, .morph-panel.open, .sig-panel.open{ display:block; }
+  .x-head, .m-head, .s-head{ padding:14px 18px; background:linear-gradient(180deg, var(--panel-head), rgba(255,255,255,0.04));
     border-bottom:1px solid var(--line); border-radius:14px 14px 0 0; font-weight:800; letter-spacing:.2px; font-size:19px; text-transform:lowercase; }
-  .x-body, .m-body{ padding:12px 14px; }
+  .x-body, .m-body, .s-body{ padding:12px 14px; }
   .xlat-item{ display:grid; grid-template-columns: 160px 1fr; gap:12px; padding:6px 0; align-items:start; }
   .xlat-item + .xlat-item{ border-top:1px dashed var(--line); }
   .lab{ font-weight:700; color:var(--accent) }
@@ -68,6 +69,11 @@
   .morph-table th{ text-align:center; background:#0f1520; color:var(--text); }
   .morph-table td{ background:#141b26; color:var(--text); }
   .morph-table .cases{ font-style:italic; color:#ffffff; }
+
+  .sig-text{
+    white-space:pre-wrap;
+    line-height:1.55;
+  }
 
   footer{ position:fixed; left:0; right:0; bottom:0; background:linear-gradient(180deg, rgba(11,15,20,0), rgba(11,15,20,.9));
     border-top:1px solid var(--line); text-align:center; font-style:italic; color:var(--muted); padding:10px 16px; }
@@ -85,10 +91,13 @@
         <div class="row">
           <select id="leftLang" class="select">
             <option value="SLA">Slavonica</option>
+            <option value="LSA">Lingua Slavonica Antiqua</option>
             <option value="RUS">Russica</option>
             <option value="ALB">Albaruthenica</option>
             <option value="UCR">Ucrainica</option>
             <option value="POL" selected>Polonica</option>
+            <option value="LSI">Lingua Sorabica Superior</option>
+            <option value="LSS">Lingua Sorabica Inferior</option>
             <option value="SLO">Slovaca</option>
             <option value="BOH">Bohemica</option>
             <option value="SLV">Slovena</option>
@@ -97,12 +106,16 @@
             <option value="MAC">Macedonica</option>
             <option value="BUL">Bulgarica</option>
           </select>
+
           <select id="rightLang" class="select">
             <option value="SLA" selected>Slavonica</option>
+            <option value="LSA">Lingua Slavonica Antiqua</option>
             <option value="RUS">Russica</option>
             <option value="ALB">Albaruthenica</option>
             <option value="UCR">Ucrainica</option>
             <option value="POL">Polonica</option>
+            <option value="LSI">Lingua Sorabica Superior</option>
+            <option value="LSS">Lingua Sorabica Inferior</option>
             <option value="SLO">Slovaca</option>
             <option value="BOH">Bohemica</option>
             <option value="SLV">Slovena</option>
@@ -111,6 +124,7 @@
             <option value="MAC">Macedonica</option>
             <option value="BUL">Bulgarica</option>
           </select>
+
           <label class="search">
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23C15.99 6.01 13.32 3.34 9.99 3.34S4 6.01 4 9.34s2.67 6 5.99 6c1.61 0 3.09-.59 4.23-1.57l.27.28v.79L20 20.33 21.33 19 15.5 14Zm-5.51 0C7.47 14 6 12.53 6 10.84S7.47 7.68 9.99 7.68s3.99 1.47 3.99 3.16S12.52 14 9.99 14Z"/></svg>
             <input id="query" placeholder="Scribe initium verbi" autocomplete="off" />
@@ -150,12 +164,18 @@
 
   const DEFAULT_FALLBACK = "POL";
 
-  const langsOrder = ["SLA","PSL","0","I","II","III","IV","V","RUS","ALB","UCR","POL","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
+  // wszystkie klucze kolumn, które bierzemy z XLSX (po nagłówkach)
+  const cols = ["SLA","PSL","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","LSI","LSS","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
 
   function debounce(fn, d=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); } }
   function normalize(s){ return (s||"").toLowerCase().trim(); }
-  function prefixMatch(cell,q){ if(!cell||!q) return false; return normalize(cell).split(/[,;/|]/).some(p=>p.trim().startsWith(normalize(q))); }
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+  function prefixMatch(cell,q){
+    if(!cell||!q) return false;
+    return normalize(cell).split(/[,;/|]/).some(p=>p.trim().startsWith(normalize(q)));
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
 
   // POS helpers
   function isVerbPOS(pos){ return /\b(verbum|vb\.?|v\.?)\b/i.test(pos||""); }
@@ -163,10 +183,12 @@
   function isNounPOS(pos){ return /\b(nomen|nom\.?|n\.?)\b/i.test(pos||""); }
   function isPronPOS(pos){ return /\b(pronomen|pron\.?)\b/i.test(pos||""); }
 
-  // aspect label for verbs
-  function aspectOnly(iv){ const m=(iv||"").match(/\b(impf\.?|perf\.?)\b/i); if(!m) return ""; return m[1].toLowerCase().startsWith('impf')?'impf.':'perf.'; }
+  function aspectOnly(iv){
+    const m=(iv||"").match(/\b(impf\.?|perf\.?)\b/i);
+    if(!m) return "";
+    return m[1].toLowerCase().startsWith('impf')?'impf.':'perf.';
+  }
 
-  // Parse V list into fixed-length array
   function parseV(vStr, len){
     const parts = String(vStr||"").split(";").map(s=>s.trim());
     const out = new Array(len).fill("—");
@@ -174,9 +196,7 @@
     return out;
   }
 
-  // Morphology tables
   function buildNounLikeTable(vStr){
-    // 16 slots: Nom S; Acc S; Gen S; Loc S; Dat S; Instr S; Voc S; Nom/Acc/Voc D; Gen/Loc D; Dat/Instr D; Nom/Voc P; Acc P; Gen P; Loc P; Dat P; Instr P
     const v = parseV(vStr, 16);
     const cases = ["Nominativus","Accusativus","Genetivus","Locativus","Dativus","Instrumentalis","Vocativus"];
     const table = document.createElement('table'); table.className='morph-table';
@@ -208,18 +228,15 @@
   }
 
   function buildAdjTable(vStr){
-    // 25 pozycji wg ustalonej kolejności
     const v = parseV(vStr, 25);
     const g = i => v[i-1] || '—';
 
     const table = document.createElement('table'); table.className='morph-table';
     const tbody = document.createElement('tbody');
 
-    // cechy
     tbody.appendChild(rowHead(['Indefinitum','Adverbium','Comparativus','Superlativus']));
     { const tr=document.createElement('tr'); tr.append(td(g(1)), td(g(2)), td(g(3)), td(g(4))); tbody.appendChild(tr); }
 
-    // Singularis
     tbody.appendChild(sectionRow('Singularis',5));
     tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
     { const tr=document.createElement('tr'); tr.append(tdLabel('Nominativus'));
@@ -240,7 +257,6 @@
       const left=document.createElement('td'); left.colSpan=3; left.textContent=g(9); tr.appendChild(left);
       tr.append(td(g(15))); tbody.appendChild(tr); }
 
-    // Dualis
     tbody.appendChild(sectionRow('Dualis',5));
     tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
     { const tr=document.createElement('tr'); tr.append(tdLabel('Nom., Acc.'));
@@ -251,7 +267,6 @@
     { const tr=document.createElement('tr'); tr.append(tdLabel('Dat., Instr.'));
       const one=document.createElement('td'); one.colSpan=4; one.textContent=g(18); tr.appendChild(one); tbody.appendChild(tr); }
 
-    // Pluralis
     tbody.appendChild(sectionRow('Pluralis',5));
     tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
     { const tr=document.createElement('tr'); tr.append(tdLabel('Nominativus'));
@@ -278,10 +293,9 @@
   }
 
   function buildVerbTable(aspectStr, vStr){
-    // 30 slotów wg ustaleń (Impf: Incipere widoczne; Perf: bez Incipere, Participia Praesens->Futurum)
     const isImpf = /\bimpf\.?\b/i.test(aspectStr||"");
     const base = parseV(vStr, 30);
-    const v = isImpf ? base : ["", ...base]; // wyrównanie slotów
+    const v = isImpf ? base : ["", ...base];
 
     const table = document.createElement('table'); table.className='morph-table';
     const thead = document.createElement('thead');
@@ -292,14 +306,12 @@
     const tbody = document.createElement('tbody');
     const slots=[];
 
-    // wiersz inicjalny
     { const tr = document.createElement('tr');
       const t0=document.createElement('td'), t1=document.createElement('td'),
             t2=document.createElement('td'), t3=document.createElement('td');
       tr.append(t0,t1,t2,t3); tbody.appendChild(tr);
       slots.push(t0,t1,t2,t3); }
 
-    // Participia
     tbody.appendChild(sectionHeaderRow('Participia', 3));
     { const tr=document.createElement('tr');
       const thEmpty=document.createElement('th'); thEmpty.className='cases'; thEmpty.textContent=' '; tr.appendChild(thEmpty);
@@ -310,14 +322,12 @@
     { const tr=document.createElement('tr'); tr.append(tdLab('Activum')); const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr); slots.push(a,b); }
     { const tr=document.createElement('tr'); tr.append(tdLab('Passivum')); const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr); slots.push(a,b); }
 
-    // Praesens
     tbody.appendChild(sectionHeaderRow('Praesens', 4));
     tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
     { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
     { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
     { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
 
-    // Imperfectum / Aoristus
     const tenseBlock = isImpf ? 'Imperfectum' : 'Aoristus';
     tbody.appendChild(sectionHeaderRow(tenseBlock, 4));
     tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
@@ -325,7 +335,6 @@
     { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
     { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
 
-    // Imperativus
     tbody.appendChild(sectionHeaderRow('Imperativus', 4));
     tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
     { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[2]); }
@@ -333,7 +342,6 @@
     { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
 
     table.appendChild(tbody);
-    // wypełnij komórki
     slots.forEach((cell, i)=>{ cell.textContent = v[i] || (i===0 ? "" : "—"); });
     return table;
 
@@ -343,7 +351,6 @@
     function tdLab(txt){ const x=document.createElement('td'); x.textContent=txt; x.className='cases'; return x; }
   }
 
-  // Load XLSX
   async function loadXLSX(){
     statusEl.textContent = "Ładowanie danych z XLSX…";
     const buf = await fetch(XLSX_URL, {cache: "no-store"}).then(r=>r.arrayBuffer());
@@ -356,30 +363,17 @@
     const out=[];
     for(const r of rows){
       const rec = {};
-      for(const k of Object.keys(r)){ rec[normKey(k)] = (r[k] ?? "").toString().trim(); }
-      const row = {
-        SLA: rec["SLA"]||"",
-        PSL: rec["PSL"]||"",
-        "0": rec["0"]||"",
-        I: rec["I"]||"",
-        II: rec["II"]||"",
-        III: rec["III"]||"",
-        IV: rec["IV"]||"",
-        V: rec["V"]||"",
-        RUS: rec["RUS"]||"",
-        ALB: rec["ALB"]||"",
-        UCR: rec["UCR"]||"",
-        POL: rec["POL"]||"",
-        SLO: rec["SLO"]||"",
-        BOH: rec["BOH"]||"",
-        SLV: rec["SLV"]||"",
-        CRO: rec["CRO"]||"",
-        SER: rec["SER"]||"",
-        MAC: rec["MAC"]||"",
-        BUL: rec["BUL"]||""
-      };
-      if(langsOrder.some(k=>row[k])) out.push(row);
+      for(const k of Object.keys(r)){
+        rec[normKey(k)] = (r[k] ?? "").toString().trim();
+      }
+
+      const row = {};
+      for(const c of cols) row[c] = rec[c] || "";
+
+      // pomiń puste wiersze
+      if(cols.some(k=>row[k])) out.push(row);
     }
+
     countAll.textContent = out.length;
     topbar.style.display = "flex";
     statusEl.textContent = "";
@@ -388,49 +382,62 @@
 
   const data = await loadXLSX().catch(e=>{ console.error(e); statusEl.textContent="Nie udało się wczytać XLSX."; return []; });
 
-  // Slavonica – zawsze po jednej stronie
   let lastLeft = leftSel.value, lastRight = rightSel.value;
   function enforceSlavonica(trigger){
     const prevLeft = lastLeft, prevRight = lastRight;
     let L = leftSel.value, R = rightSel.value;
+
     if(trigger === 'left'){
-      if(R === 'SLA' && L === 'SLA'){ rightSel.value = prevLeft && prevLeft !== 'SLA' ? prevLeft : DEFAULT_FALLBACK; }
-      else if(L !== 'SLA' && R !== 'SLA'){ rightSel.value = 'SLA'; }
+      if(R === 'SLA' && L === 'SLA'){
+        rightSel.value = prevLeft && prevLeft !== 'SLA' ? prevLeft : DEFAULT_FALLBACK;
+      } else if(L !== 'SLA' && R !== 'SLA'){
+        rightSel.value = 'SLA';
+      }
     } else {
-      if(L === 'SLA' && R === 'SLA'){ leftSel.value = prevRight && prevRight !== 'SLA' ? prevRight : DEFAULT_FALLBACK; }
-      else if(L !== 'SLA' && R !== 'SLA'){ leftSel.value = 'SLA'; }
+      if(L === 'SLA' && R === 'SLA'){
+        leftSel.value = prevRight && prevRight !== 'SLA' ? prevRight : DEFAULT_FALLBACK;
+      } else if(L !== 'SLA' && R !== 'SLA'){
+        leftSel.value = 'SLA';
+      }
     }
+
     lastLeft = leftSel.value; lastRight = rightSel.value;
     closePanels(); render();
   }
 
   function closePanels(){
-    document.querySelectorAll('.xlat-panel.open, .morph-panel.open').forEach(p=>p.classList.remove('open'));
+    document.querySelectorAll('.xlat-panel.open, .morph-panel.open, .sig-panel.open').forEach(p=>p.classList.remove('open'));
     document.querySelectorAll('.pill-btn[aria-pressed="true"]').forEach(b=>b.setAttribute('aria-pressed','false'));
   }
 
   function render(){
     const L = leftSel.value, R = rightSel.value, q = queryInp.value.trim();
     let rows = data;
+
     if(q) rows = rows.filter(r => prefixMatch(r[L], q));
+
     cardsEl.innerHTML = "";
     countShown.textContent = rows.length;
 
-    if(!q){ statusEl.textContent = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias."; return; }
+    if(!q){
+      statusEl.textContent = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias.";
+      return;
+    }
     statusEl.textContent = "";
 
     rows.forEach(r=>{
       const card = document.createElement('div'); card.className='card';
       const head = document.createElement('div'); head.className='head';
 
-      // lemma
       const word = document.createElement('div'); word.className='word';
       const lemma = (r[R]||"(brak)").trim();
       word.append(document.createTextNode(lemma));
-      if(r["0"]){ const br=document.createElement('span'); br.className='bracket'; br.textContent=`[${r["0"]}]`; word.append(br); }
+      if(r["0"]){
+        const br=document.createElement('span'); br.className='bracket'; br.textContent=`[${r["0"]}]`;
+        word.append(br);
+      }
       head.appendChild(word);
 
-      // meta chips (bez V)
       const meta = document.createElement('div'); meta.className='meta';
       const pos = (r.I||"");
       const chips = [
@@ -441,45 +448,66 @@
       ];
       chips.forEach(([lab,val])=>{
         if(!val) return;
-        const s=document.createElement('span'); s.className='chip'; s.textContent = `${lab}: ${val}`; meta.appendChild(s);
+        const s=document.createElement('span'); s.className='chip'; s.textContent = `${lab}: ${val}`;
+        meta.appendChild(s);
       });
       head.appendChild(meta);
 
-      // buttons
       const btnCol=document.createElement('div'); btnCol.className='btn-col';
-      const bT=document.createElement('button'); bT.className='pill-btn'; bT.textContent='translationes'; bT.setAttribute('aria-pressed','false');
+
+      // translationes
+      const bT=document.createElement('button');
+      bT.className='pill-btn'; bT.textContent='translationes';
+      bT.setAttribute('aria-pressed','false');
       btnCol.appendChild(bT);
 
-      // morph button only for nomen/nom./n., pronomen, adiectivum, verbum
+      // significatio (VI)
+      const bS=document.createElement('button');
+      bS.className='pill-btn'; bS.textContent='significatio';
+      bS.setAttribute('aria-pressed','false');
+      btnCol.appendChild(bS);
+
+      // morph (V)
       const allowMorph = isNounPOS(pos) || isPronPOS(pos) || isAdjPOS(pos) || isVerbPOS(pos);
       let bM=null, mPanel=null;
       if(allowMorph){
-        bM=document.createElement('button'); bM.className='pill-btn'; bM.textContent = isVerbPOS(pos) ? 'coniugatio' : 'declinatio';
-        bM.setAttribute('aria-pressed','false'); btnCol.appendChild(bM);
+        bM=document.createElement('button');
+        bM.className='pill-btn';
+        bM.textContent = isVerbPOS(pos) ? 'coniugatio' : 'declinatio';
+        bM.setAttribute('aria-pressed','false');
+        btnCol.appendChild(bM);
 
-        // morph panel
-        mPanel=document.createElement('div'); mPanel.className='morph-panel';
-        const mHead=document.createElement('div'); mHead.className='m-head'; mHead.textContent = isVerbPOS(pos) ? 'coniugatio' : 'declinatio';
+        mPanel=document.createElement('div');
+        mPanel.className='morph-panel';
+        const mHead=document.createElement('div'); mHead.className='m-head';
+        mHead.textContent = isVerbPOS(pos) ? 'coniugatio' : 'declinatio';
         const mBody=document.createElement('div'); mBody.className='m-body';
+
         const table = isVerbPOS(pos) ? buildVerbTable(aspectOnly(r.IV), r.V)
                                      : (isAdjPOS(pos) ? buildAdjTable(r.V) : buildNounLikeTable(r.V));
-        mBody.appendChild(table); mPanel.appendChild(mHead); mPanel.appendChild(mBody);
+
+        mBody.appendChild(table);
+        mPanel.appendChild(mHead); mPanel.appendChild(mBody);
       }
 
-      card.appendChild(head); card.appendChild(btnCol);
+      card.appendChild(head);
+      card.appendChild(btnCol);
       cardsEl.appendChild(card);
 
-      // translation panel (Protoslavica included)
+      // translation panel
       const x = document.createElement('div'); x.className='xlat-panel';
       x.innerHTML = `
         <div class="x-head">translationes</div>
         <div class="x-body">
           ${langRow('Slavonica', r.SLA)}
           ${langRow('Protoslavica', r.PSL)}
+          ${langRow('Lingua Slavonica Antiqua', r.LSA)}
           ${langRow('Russica', r.RUS)}
           ${langRow('Albaruthenica', r.ALB)}
           ${langRow('Ucrainica', r.UCR)}
           ${langRow('Polonica', r.POL)}
+          ${langRow('Lingua Sorabica Superior', r.LSI)}
+          ${langRow('Lingua Sorabica Inferior', r.LSS)}
           ${langRow('Slovaca', r.SLO)}
           ${langRow('Bohemica', r.BOH)}
           ${langRow('Slovena', r.SLV)}
@@ -489,19 +517,47 @@
           ${langRow('Bulgarica', r.BUL)}
         </div>`;
       cardsEl.appendChild(x);
+
+      // significatio panel
+      const sP = document.createElement('div'); sP.className='sig-panel';
+      sP.innerHTML = `
+        <div class="s-head">significatio</div>
+        <div class="s-body"><div class="sig-text">${escapeHtml((r.VI||"—").trim() || "—")}</div></div>
+      `;
+      cardsEl.appendChild(sP);
+
       if(mPanel) cardsEl.appendChild(mPanel);
 
-      // interactions: mutually exclusive
+      // interactions (mutually exclusive)
       bT.addEventListener('click', ()=>{
         const open = !x.classList.contains('open');
         closePanels();
-        if(open){ x.classList.add('open'); bT.setAttribute('aria-pressed','true'); x.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+        if(open){
+          x.classList.add('open');
+          bT.setAttribute('aria-pressed','true');
+          x.scrollIntoView({behavior:'smooth', block:'nearest'});
+        }
       });
+
+      bS.addEventListener('click', ()=>{
+        const open = !sP.classList.contains('open');
+        closePanels();
+        if(open){
+          sP.classList.add('open');
+          bS.setAttribute('aria-pressed','true');
+          sP.scrollIntoView({behavior:'smooth', block:'nearest'});
+        }
+      });
+
       if(bM){
         bM.addEventListener('click', ()=>{
           const open = !mPanel.classList.contains('open');
           closePanels();
-          if(open){ mPanel.classList.add('open'); bM.setAttribute('aria-pressed','true'); mPanel.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+          if(open){
+            mPanel.classList.add('open');
+            bM.setAttribute('aria-pressed','true');
+            mPanel.scrollIntoView({behavior:'smooth', block:'nearest'});
+          }
         });
       }
 
@@ -512,13 +568,13 @@
     });
   }
 
-  // events
   leftSel.addEventListener('change', ()=>enforceSlavonica('left'));
   rightSel.addEventListener('change', ()=>enforceSlavonica('right'));
   queryInp.addEventListener('input', debounce(()=>{ closePanels(); render(); },120));
 
-  // start
-  if(data.length){ statusEl.textContent = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias."; }
+  if(data.length){
+    statusEl.textContent = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias.";
+  }
 })();
 </script>
 </body>
