@@ -70,10 +70,7 @@
   .morph-table td{ background:#141b26; color:var(--text); }
   .morph-table .cases{ font-style:italic; color:#ffffff; }
 
-  .sig-text{
-    white-space:pre-wrap;
-    line-height:1.55;
-  }
+  .sig-text{ white-space:pre-wrap; line-height:1.55; }
 
   footer{ position:fixed; left:0; right:0; bottom:0; background:linear-gradient(180deg, rgba(11,15,20,0), rgba(11,15,20,.9));
     border-top:1px solid var(--line); text-align:center; font-style:italic; color:var(--muted); padding:10px 16px; }
@@ -96,8 +93,8 @@
             <option value="ALB">Albaruthenica</option>
             <option value="UCR">Ucrainica</option>
             <option value="POL" selected>Polonica</option>
-            <option value="LSI">Lingua Sorabica Superior</option>
-            <option value="LSS">Lingua Sorabica Inferior</option>
+            <option value="SSU">Sorabica Superior</option>
+            <option value="SIN">Sorabica Inferior</option>
             <option value="SLO">Slovaca</option>
             <option value="BOH">Bohemica</option>
             <option value="SLV">Slovena</option>
@@ -114,8 +111,8 @@
             <option value="ALB">Albaruthenica</option>
             <option value="UCR">Ucrainica</option>
             <option value="POL">Polonica</option>
-            <option value="LSI">Lingua Sorabica Superior</option>
-            <option value="LSS">Lingua Sorabica Inferior</option>
+            <option value="SSU">Sorabica Superior</option>
+            <option value="SIN">Sorabica Inferior</option>
             <option value="SLO">Slovaca</option>
             <option value="BOH">Bohemica</option>
             <option value="SLV">Slovena</option>
@@ -164,8 +161,7 @@
 
   const DEFAULT_FALLBACK = "POL";
 
-  // wszystkie klucze kolumn, które bierzemy z XLSX (po nagłówkach)
-  const cols = ["SLA","PSL","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","LSI","LSS","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
+  const cols = ["SLA","PSL","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
 
   function debounce(fn, d=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); } }
   function normalize(s){ return (s||"").toLowerCase().trim(); }
@@ -177,7 +173,6 @@
     return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   }
 
-  // POS helpers
   function isVerbPOS(pos){ return /\b(verbum|vb\.?|v\.?)\b/i.test(pos||""); }
   function isAdjPOS(pos){ return /\b(adiectiv|adjectiv|adj\.?)\b/i.test(pos||""); }
   function isNounPOS(pos){ return /\b(nomen|nom\.?|n\.?)\b/i.test(pos||""); }
@@ -363,14 +358,9 @@
     const out=[];
     for(const r of rows){
       const rec = {};
-      for(const k of Object.keys(r)){
-        rec[normKey(k)] = (r[k] ?? "").toString().trim();
-      }
-
+      for(const k of Object.keys(r)){ rec[normKey(k)] = (r[k] ?? "").toString().trim(); }
       const row = {};
       for(const c of cols) row[c] = rec[c] || "";
-
-      // pomiń puste wiersze
       if(cols.some(k=>row[k])) out.push(row);
     }
 
@@ -455,19 +445,16 @@
 
       const btnCol=document.createElement('div'); btnCol.className='btn-col';
 
-      // translationes
       const bT=document.createElement('button');
       bT.className='pill-btn'; bT.textContent='translationes';
       bT.setAttribute('aria-pressed','false');
       btnCol.appendChild(bT);
 
-      // significatio (VI)
       const bS=document.createElement('button');
       bS.className='pill-btn'; bS.textContent='significatio';
       bS.setAttribute('aria-pressed','false');
       btnCol.appendChild(bS);
 
-      // morph (V)
       const allowMorph = isNounPOS(pos) || isPronPOS(pos) || isAdjPOS(pos) || isVerbPOS(pos);
       let bM=null, mPanel=null;
       if(allowMorph){
@@ -494,7 +481,6 @@
       card.appendChild(btnCol);
       cardsEl.appendChild(card);
 
-      // translation panel
       const x = document.createElement('div'); x.className='xlat-panel';
       x.innerHTML = `
         <div class="x-head">translationes</div>
@@ -506,8 +492,8 @@
           ${langRow('Albaruthenica', r.ALB)}
           ${langRow('Ucrainica', r.UCR)}
           ${langRow('Polonica', r.POL)}
-          ${langRow('Lingua Sorabica Superior', r.LSI)}
-          ${langRow('Lingua Sorabica Inferior', r.LSS)}
+          ${langRow('Sorabica Superior', r.SSU)}
+          ${langRow('Sorabica Inferior', r.SIN)}
           ${langRow('Slovaca', r.SLO)}
           ${langRow('Bohemica', r.BOH)}
           ${langRow('Slovena', r.SLV)}
@@ -518,7 +504,6 @@
         </div>`;
       cardsEl.appendChild(x);
 
-      // significatio panel
       const sP = document.createElement('div'); sP.className='sig-panel';
       sP.innerHTML = `
         <div class="s-head">significatio</div>
@@ -528,7 +513,6 @@
 
       if(mPanel) cardsEl.appendChild(mPanel);
 
-      // interactions (mutually exclusive)
       bT.addEventListener('click', ()=>{
         const open = !x.classList.contains('open');
         closePanels();
