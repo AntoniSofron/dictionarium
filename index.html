@@ -161,9 +161,8 @@
 
   const DEFAULT_FALLBACK = "POL";
 
-  // kolumny w XLSX (po nagłówkach)
-  // CHANDŽI/CHANDZI pomiędzy PSL a 0
-  const cols = ["SLA","PSL","CHANDŽI","CHANDZI","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
+  // Dodano CHANDŽI pomiędzy PSL a 0
+  const cols = ["SLA","PSL","CHANDŽI","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
 
   function debounce(fn, d=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); } }
   function normalize(s){ return (s||"").toLowerCase().trim(); }
@@ -361,36 +360,9 @@
     for(const r of rows){
       const rec = {};
       for(const k of Object.keys(r)){ rec[normKey(k)] = (r[k] ?? "").toString().trim(); }
-
-      const row = {
-        SLA: rec["SLA"] || "",
-        PSL: rec["PSL"] || "",
-        // Chandži: tolerujemy nagłówek z diakrytykiem albo bez
-        CHANDZI: (rec["CHANDŽI"] || rec["CHANDZI"] || rec["CHANDŻI"] || rec["CHANDZİ"] || "").trim(),
-        "0": rec["0"] || "",
-        I: rec["I"] || "",
-        II: rec["II"] || "",
-        III: rec["III"] || "",
-        IV: rec["IV"] || "",
-        V: rec["V"] || "",
-        VI: rec["VI"] || "",
-        LSA: rec["LSA"] || "",
-        RUS: rec["RUS"] || "",
-        ALB: rec["ALB"] || "",
-        UCR: rec["UCR"] || "",
-        POL: rec["POL"] || "",
-        SSU: rec["SSU"] || "",
-        SIN: rec["SIN"] || "",
-        SLO: rec["SLO"] || "",
-        BOH: rec["BOH"] || "",
-        SLV: rec["SLV"] || "",
-        CRO: rec["CRO"] || "",
-        SER: rec["SER"] || "",
-        MAC: rec["MAC"] || "",
-        BUL: rec["BUL"] || ""
-      };
-
-      if(Object.keys(row).some(k => row[k])) out.push(row);
+      const row = {};
+      for(const c of cols) row[c] = rec[c] || "";
+      if(cols.some(k=>row[k])) out.push(row);
     }
 
     countAll.textContent = out.length;
@@ -433,9 +405,7 @@
     const L = leftSel.value, R = rightSel.value, q = queryInp.value.trim();
     let rows = data;
 
-    if(q){
-      rows = rows.filter(r => prefixMatch(r[L], q));
-    }
+    if(q) rows = rows.filter(r => prefixMatch(r[L], q));
 
     cardsEl.innerHTML = "";
     countShown.textContent = rows.length;
@@ -454,15 +424,22 @@
       const lemma = (r[R]||"(brak)").trim();
       word.append(document.createTextNode(lemma));
 
-      // Chandži tuż po transkrypcji, w tym samym stylu (czyli jako zwykły tekst w .word)
-      if(r.CHANDZI){
-        word.append(document.createTextNode(" " + r.CHANDZI));
-      }
-
+      // transkrypcja: 0
       if(r["0"]){
-        const br=document.createElement('span'); br.className='bracket'; br.textContent=`[${r["0"]}]`;
+        const br=document.createElement('span');
+        br.className='bracket';
+        br.textContent=`[${r["0"]}]`;
         word.append(br);
       }
+
+      // Chandži: w tym samym stylu co transkrypcja, w 「」
+      if(r["CHANDŽI"]){
+        const cz=document.createElement('span');
+        cz.className='bracket';
+        cz.textContent = `「${r["CHANDŽI"]}」`;
+        word.append(cz);
+      }
+
       head.appendChild(word);
 
       const meta = document.createElement('div'); meta.className='meta';
