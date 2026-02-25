@@ -40,11 +40,11 @@
   .word{ font-size:18px; font-weight:600; word-break:break-word; display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; }
   .bracket{ color:var(--muted); font-weight:400; }
 
-  /* Chandži ma być 2× większe od .word (czyli 36px przy 18px) */
+  /* 1.5× względem .word (18px -> 27px) */
   .chandzi{
     font-weight:800;
-    font-size:36px;
-    line-height:1.05;
+    font-size:27px;
+    line-height:1.15;
     margin-top:2px;
     margin-bottom:4px;
     letter-spacing:.2px;
@@ -368,8 +368,7 @@
       for(const k of Object.keys(r)){ rec[normKey(k)] = (r[k] ?? "").toString().trim(); }
 
       const row = {};
-      row["CHANDZI"] = rec["CHANDZI"] || rec["CHANDŽI"] || "";
-
+      row["CHANDZI"] = rec["CHANDZI"] || rec["CHANDŽI"] || rec["CHANDŽĬ"] || rec["CHANDŽÍ"] || "";
       const restCols = ["SLA","PSL","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
       restCols.forEach(c=>row[c]=rec[c]||"");
 
@@ -387,18 +386,17 @@
   let lastLeft = leftSel.value, lastRight = rightSel.value;
   function enforceSlavonica(trigger){
     const prevLeft = lastLeft, prevRight = lastRight;
-    let L = leftSel.value, R = rightSel.value;
 
     if(trigger === 'left'){
-      if(R === 'SLA' && L === 'SLA'){
+      if(rightSel.value === 'SLA' && leftSel.value === 'SLA'){
         rightSel.value = prevLeft && prevLeft !== 'SLA' ? prevLeft : DEFAULT_FALLBACK;
-      } else if(L !== 'SLA' && R !== 'SLA'){
+      } else if(leftSel.value !== 'SLA' && rightSel.value !== 'SLA'){
         rightSel.value = 'SLA';
       }
     } else {
-      if(L === 'SLA' && R === 'SLA'){
+      if(leftSel.value === 'SLA' && rightSel.value === 'SLA'){
         leftSel.value = prevRight && prevRight !== 'SLA' ? prevRight : DEFAULT_FALLBACK;
-      } else if(L !== 'SLA' && R !== 'SLA'){
+      } else if(leftSel.value !== 'SLA' && rightSel.value !== 'SLA'){
         leftSel.value = 'SLA';
       }
     }
