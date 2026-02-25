@@ -40,6 +40,16 @@
   .head{ display:flex; flex-direction:column; gap:6px; min-width:0; }
   .word{ font-size:18px; font-weight:600; word-break:break-word; display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; }
   .bracket{ color:var(--muted); font-weight:400; }
+
+  .chandzi{
+    font-weight:800;
+    font-size:20px;
+    line-height:1.15;
+    margin-top:2px;
+    margin-bottom:4px;
+    letter-spacing:.2px;
+  }
+
   .meta{ display:flex; flex-wrap:wrap; gap:6px; }
   .chip{ background:var(--chip); border:1px solid var(--chip-b); padding:4px 8px; border-radius:999px; font-size:12px; color:var(--muted); }
 
@@ -58,7 +68,6 @@
   .xlat-item + .xlat-item{ border-top:1px dashed var(--line); }
   .lab{ font-weight:700; color:var(--accent) }
 
-  /* tabele morfologiczne */
   .morph-table{
     display:inline-table; width:max-content; table-layout:auto;
     border-collapse:separate; border-spacing:0; font-size:15px; margin:0 2px;
@@ -161,7 +170,8 @@
 
   const DEFAULT_FALLBACK = "POL";
 
-  const cols = ["SLA","PSL","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
+  // nowe: CHANDZI pomiędzy PSL a 0
+  const cols = ["SLA","PSL","CHANDŽI","CHANDZI","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
 
   function debounce(fn, d=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); } }
   function normalize(s){ return (s||"").toLowerCase().trim(); }
@@ -359,9 +369,16 @@
     for(const r of rows){
       const rec = {};
       for(const k of Object.keys(r)){ rec[normKey(k)] = (r[k] ?? "").toString().trim(); }
+
       const row = {};
-      for(const c of cols) row[c] = rec[c] || "";
-      if(cols.some(k=>row[k])) out.push(row);
+      // CHANDZI w praktyce bywa jako "Chandži" — łapiemy oba warianty
+      row["CHANDZI"] = rec["CHANDZI"] || rec["CHANDŽI"] || rec["CHANDŽĬ"] || rec["CHANDŽÍ"] || "";
+
+      const restCols = ["SLA","PSL","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
+      restCols.forEach(c=>row[c]=rec[c]||"");
+
+      // pomiń puste wiersze
+      if(Object.keys(row).some(k=>row[k])) out.push(row);
     }
 
     countAll.textContent = out.length;
@@ -427,6 +444,15 @@
         word.append(br);
       }
       head.appendChild(word);
+
+      // Chandži: pod słowem i wymową, nad meta
+      const ch = (r.CHANDZI||"").trim();
+      if(ch){
+        const chEl = document.createElement('div');
+        chEl.className = 'chandzi';
+        chEl.textContent = ch;
+        head.appendChild(chEl);
+      }
 
       const meta = document.createElement('div'); meta.className='meta';
       const pos = (r.I||"");
