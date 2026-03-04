@@ -102,6 +102,8 @@
             <option value="SER">Serbica</option>
             <option value="MAC">Macedonica</option>
             <option value="BUL">Bulgarica</option>
+            <option value="JAP">Japonica</option>
+            <option value="COR">Coreana</option>
           </select>
 
           <select id="rightLang" class="select">
@@ -120,6 +122,8 @@
             <option value="SER">Serbica</option>
             <option value="MAC">Macedonica</option>
             <option value="BUL">Bulgarica</option>
+            <option value="JAP">Japonica</option>
+            <option value="COR">Coreana</option>
           </select>
 
           <label class="search">
@@ -161,8 +165,7 @@
 
   const DEFAULT_FALLBACK = "POL";
 
-  // Dodano CHANDŽI pomiędzy PSL a 0
-  const cols = ["SLA","PSL","CHANDŽI","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL"];
+  const cols = ["SLA","PSL","CHANDŽI","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL","JAP","COR"];
 
   function debounce(fn, d=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); } }
   function normalize(s){ return (s||"").toLowerCase().trim(); }
@@ -270,6 +273,7 @@
     { const tr=document.createElement('tr'); tr.append(tdLabel('Accusativus'));
       const left=document.createElement('td'); left.colSpan=2; left.textContent=g(21); tr.appendChild(left);
       tr.append(td(g(25)), td(g(21))); tbody.appendChild(tr); }
+
     { const tr=document.createElement('tr'); tr.append(tdLabel('Genetivus'));
       const one=document.createElement('td'); one.colSpan=4; one.textContent=g(22); tr.appendChild(one); tbody.appendChild(tr); }
     { const tr=document.createElement('tr'); tr.append(tdLabel('Locativus'));
@@ -424,15 +428,12 @@
       const lemma = (r[R]||"(brak)").trim();
       word.append(document.createTextNode(lemma));
 
-      // transkrypcja: 0
       if(r["0"]){
         const br=document.createElement('span');
         br.className='bracket';
         br.textContent=`[${r["0"]}]`;
         word.append(br);
       }
-
-      // Chandži: w tym samym stylu co transkrypcja, w 「」
       if(r["CHANDŽI"]){
         const cz=document.createElement('span');
         cz.className='bracket';
@@ -515,6 +516,8 @@
           ${langRow('Serbica', r.SER)}
           ${langRow('Macedonica', r.MAC)}
           ${langRow('Bulgarica', r.BUL)}
+          ${langRow('Japonica', r.JAP)}
+          ${langRow('Coreana', r.COR)}
         </div>`;
       cardsEl.appendChild(x);
 
