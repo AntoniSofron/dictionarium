@@ -1,581 +1,1202 @@
 <!DOCTYPE html>
+<!--
+Streszczenie wykonawcze:
+- Parser kolumny V znajduje się w funkcjach parseVTokens() i parseOneVToken().
+- Kolumna V jest dzielona po średnikach; puste segmenty są ignorowane.
+- Marker "&7" nigdy nie jest pokazywany: jeśli stoi na początku tokenu, cały token jest szary;
+  jeśli wystąpi wewnątrz tokenu (np. "Souli, &7*Soulev"), tekst od markera do końca tokenu
+  staje się szary, zgodnie z przykładem testowym.
+- Ten sam renderer renderTokenGroup() jest używany zarówno w chipie V, jak i w tabeli
+  declinatio/coniugatio 7x3, więc kolorowanie działa spójnie wszędzie.
+- Funkcja buildInflectionGrid() zawiera mapowanie 16 tokenów V -> 7x3 komórek tabeli.
+- W trybie DEBUG_LOCAL_SAMPLE dodawany jest rekord testowy "Soul", dzięki czemu marker &7
+  można sprawdzić także bez poprawnie wczytanego PDF.
+-->
 <html lang="pl">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dictionarium Sanctae Marthae</title>
+<title>Dictionarium — słownik prasłowiański online</title>
 
-<!-- SheetJS (XLSX parser) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+</script>
 
 <style>
   :root{
-    --bg:#0b0f14; --card:#121821; --muted:#9bb0c8; --text:#e7eef8; --accent:#70c0ff;
-    --chip:#1a2330; --chip-b:#263244; --line:#1f2a3a; --pill:#1b2839; --pill-b:#2a3b55;
-    --panel:#111824; --panel-head:#0f1520;
+    --bg:#0b0f14;
+    --card:#121821;
+    --card-2:#0f1621;
+    --muted:#9bb0c8;
+    --text:#e7eef8;
+    --accent:#70c0ff;
+    --accent-2:#93d0ff;
+    --line:#1f2a3a;
+    --chip:#1a2330;
+    --chip-b:#263244;
+    --btn:#1a3147;
+    --btn-b:#3e6f99;
+    --btn-h:#23405a;
+    --panel:#0e1520;
+    --table-line:#4f76c2;
+    --muted-form:#a4adb9;
+    --soft:#d9e3f3;
   }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{ margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui,Segoe UI,Inter,Roboto,Arial,sans-serif; }
-  header{ position:sticky; top:0; z-index:5; backdrop-filter:saturate(1.1) blur(8px);
-    background:linear-gradient(180deg, rgba(11,15,20,.9), rgba(11,15,20,.6) 80%, transparent);
-    border-bottom:1px solid var(--line); }
-  .wrap{max-width:1100px; margin:0 auto; padding:14px 16px}
-  .brand{ display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:center; }
-  .logo img{ height:96px; width:auto; display:block; user-select:none; pointer-events:none; }
-  h1{margin:0 0 6px; font-size:20px; letter-spacing:.2px}
-  .row{ display:grid; gap:10px; grid-template-columns: 1fr 1fr 2fr; align-items:center; }
-  .select, .search{ background:var(--card); border:1px solid var(--line); color:var(--text);
-    padding:10px 12px; border-radius:12px; outline:none; }
-  .search{display:flex; align-items:center; gap:8px}
-  .search input{ all:unset; width:100%; font-size:15px; line-height:22px; }
-  .hint{font-size:12px; color:var(--muted); margin-top:6px}
-  main{padding:12px 16px 90px}
-  .status{color:var(--muted); padding:16px}
-  .topbar{ display:flex; gap:8px; align-items:center; justify-content:space-between; margin-top:8px; }
-  .small{ font-size:12px; color:var(--muted) } .count{ font-variant-numeric: tabular-nums; }
-  .cards{display:flex; flex-direction:column; gap:10px}
-  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px;
-    display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:start; }
-  .head{ display:flex; flex-direction:column; gap:6px; min-width:0; }
-  .word{ font-size:18px; font-weight:600; word-break:break-word; display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; }
-  .bracket{ color:var(--muted); font-weight:400; }
-  .meta{ display:flex; flex-wrap:wrap; gap:6px; }
-  .chip{ background:var(--chip); border:1px solid var(--chip-b); padding:4px 8px; border-radius:999px; font-size:12px; color:var(--muted); }
 
-  .btn-col{ display:flex; flex-direction:column; gap:8px; align-items:stretch; min-width:170px; }
-  .pill-btn{ appearance:none; border:1px solid var(--pill-b); background:var(--pill); color:var(--text);
-    padding:9px 14px; border-radius:999px; cursor:pointer; font-weight:700; letter-spacing:.2px;
-    transition:filter .15s ease, transform .06s ease, box-shadow .15s ease; }
-  .pill-btn:hover{ filter:brightness(1.08) } .pill-btn[aria-pressed="true"]{ outline:2px solid var(--accent); outline-offset:2px; }
-
-  .xlat-panel, .morph-panel, .sig-panel{ display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-top:8px; }
-  .xlat-panel.open, .morph-panel.open, .sig-panel.open{ display:block; }
-  .x-head, .m-head, .s-head{ padding:14px 18px; background:linear-gradient(180deg, var(--panel-head), rgba(255,255,255,0.04));
-    border-bottom:1px solid var(--line); border-radius:14px 14px 0 0; font-weight:800; letter-spacing:.2px; font-size:19px; text-transform:lowercase; }
-  .x-body, .m-body, .s-body{ padding:12px 14px; }
-  .xlat-item{ display:grid; grid-template-columns: 160px 1fr; gap:12px; padding:6px 0; align-items:start; }
-  .xlat-item + .xlat-item{ border-top:1px dashed var(--line); }
-  .lab{ font-weight:700; color:var(--accent) }
-
-  /* tabele morfologiczne */
-  .morph-table{
-    display:inline-table; width:max-content; table-layout:auto;
-    border-collapse:separate; border-spacing:0; font-size:15px; margin:0 2px;
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font:15px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Arial, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
   }
-  .morph-table th, .morph-table td{
-    border:1px solid #2b3a52; padding:6px 8px; vertical-align:middle; min-height:28px; white-space:nowrap;
+
+  header{
+    position:sticky;
+    top:0;
+    z-index:10;
+    backdrop-filter:saturate(1.15) blur(8px);
+    background:linear-gradient(180deg, rgba(11,15,20,.94), rgba(11,15,20,.72) 82%, transparent);
+    border-bottom:1px solid var(--line);
   }
-  .morph-table th{ text-align:center; background:#0f1520; color:var(--text); }
-  .morph-table td{ background:#141b26; color:var(--text); }
-  .morph-table .cases{ font-style:italic; color:#ffffff; }
 
-  .sig-text{ white-space:pre-wrap; line-height:1.55; }
+  .wrap{
+    max-width:1140px;
+    margin:0 auto;
+    padding:14px 16px;
+  }
 
-  footer{ position:fixed; left:0; right:0; bottom:0; background:linear-gradient(180deg, rgba(11,15,20,0), rgba(11,15,20,.9));
-    border-top:1px solid var(--line); text-align:center; font-style:italic; color:var(--muted); padding:10px 16px; }
-  @media (max-width:900px){ .row{ grid-template-columns: 1fr 1fr } .search{ grid-column: 1 / -1 } .logo img{height:72px} }
+  h1{
+    margin:0 0 8px;
+    font-size:20px;
+    letter-spacing:.2px;
+  }
+
+  .row{
+    display:grid;
+    gap:10px;
+    grid-template-columns:1fr 1fr 2fr;
+    align-items:center;
+  }
+
+  .select,
+  .search{
+    background:var(--card);
+    color:var(--text);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px 12px;
+    outline:none;
+    min-height:44px;
+  }
+
+  .search{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  .search input{
+    all:unset;
+    width:100%;
+    font-size:15px;
+    line-height:22px;
+  }
+
+  .hint{
+    margin-top:8px;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .debug-note{
+    color:var(--accent-2);
+  }
+
+  main{
+    padding:12px 16px 60px;
+  }
+
+  .status{
+    color:var(--muted);
+    padding:16px;
+  }
+
+  .topbar{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:8px;
+  }
+
+  .small{
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .count{
+    font-variant-numeric:tabular-nums;
+  }
+
+  .cards{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-top:8px;
+  }
+
+  .card{
+    background:linear-gradient(180deg, rgba(18,24,33,.98), rgba(14,20,29,.98));
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:14px;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:14px;
+    align-items:start;
+    overflow:hidden;
+  }
+
+  .head{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    min-width:0;
+  }
+
+  .word{
+    font-size:30px;
+    font-weight:700;
+    line-height:1.1;
+    word-break:break-word;
+  }
+
+  .sublemma{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    width:max-content;
+    max-width:100%;
+    background:var(--chip);
+    border:1px solid var(--chip-b);
+    border-radius:999px;
+    padding:4px 10px;
+    color:var(--muted);
+    font-size:12px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    background:var(--chip);
+    border:1px solid var(--chip-b);
+    border-radius:999px;
+    padding:5px 10px;
+    font-size:12px;
+    color:var(--soft);
+    max-width:100%;
+  }
+
+  .chip-label{
+    color:var(--muted);
+    white-space:nowrap;
+  }
+
+  .chip-value{
+    color:var(--soft);
+    white-space:nowrap;
+  }
+
+  .chip.info-chip{
+    border-radius:14px;
+    white-space:normal;
+    line-height:1.35;
+    align-items:flex-start;
+    max-width:100%;
+  }
+
+  .actions{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    align-items:stretch;
+    min-width:158px;
+  }
+
+  .action-btn{
+    appearance:none;
+    border:1px solid var(--btn-b);
+    background:linear-gradient(180deg, rgba(24,45,66,.92), rgba(19,36,53,.94));
+    color:var(--text);
+    border-radius:999px;
+    min-height:44px;
+    padding:10px 14px;
+    cursor:pointer;
+    transition:transform .15s ease, background .15s ease, border-color .15s ease, opacity .15s ease;
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:.2px;
+    text-align:center;
+  }
+
+  .action-btn:hover{
+    background:linear-gradient(180deg, rgba(33,60,86,.96), rgba(23,43,63,.96));
+    transform:translateY(-1px);
+  }
+
+  .action-btn[aria-pressed="true"]{
+    border-color:var(--accent);
+    box-shadow:0 0 0 2px rgba(112,192,255,.18) inset;
+  }
+
+  .action-btn:disabled{
+    opacity:.48;
+    cursor:not-allowed;
+    transform:none;
+  }
+
+  .panel{
+    display:none;
+    grid-column:1 / -1;
+    border-top:1px dashed var(--line);
+    padding-top:12px;
+  }
+
+  .panel.open{
+    display:block;
+  }
+
+  .translations-list{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .translation-block{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    padding:8px 10px;
+    border-radius:12px;
+    background:rgba(13,20,29,.7);
+    border:1px solid rgba(38,50,68,.7);
+  }
+
+  .translation-block .lab{
+    color:var(--accent);
+    font-weight:700;
+    font-size:14px;
+  }
+
+  .translation-block .val{
+    color:var(--text);
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+
+  .inflection-shell{
+    width:100%;
+    overflow-x:auto;
+    padding-bottom:2px;
+  }
+
+  .inflection-caption{
+    margin:0 0 8px;
+    color:var(--muted);
+    font-size:12px;
+  }
+
+  .inflection-table{
+    width:100%;
+    min-width:760px;
+    border-collapse:collapse;
+    table-layout:fixed;
+    border:2px solid var(--table-line);
+    border-radius:12px;
+    overflow:hidden;
+    background:#10161f;
+    color:var(--text);
+  }
+
+  .inflection-table thead th{
+    border:1px solid var(--table-line);
+    padding:10px 12px;
+    font-family:"Times New Roman", Times, serif;
+    font-size:28px;
+    font-style:italic;
+    font-weight:500;
+    text-align:center;
+    line-height:1.05;
+    background:rgba(255,255,255,.02);
+    white-space:nowrap;
+  }
+
+  .inflection-table thead th.corner{
+    width:26%;
+    font-style:normal;
+    font-size:1px;
+    color:transparent;
+    background:transparent;
+  }
+
+  .inflection-table tbody th{
+    border:1px solid var(--table-line);
+    padding:8px 14px;
+    font-family:"Times New Roman", Times, serif;
+    font-size:22px;
+    font-style:italic;
+    font-weight:500;
+    text-align:left;
+    line-height:1.1;
+    white-space:nowrap;
+    background:rgba(255,255,255,.015);
+  }
+
+  .inflection-table td{
+    border:1px solid var(--table-line);
+    padding:8px 14px;
+    vertical-align:top;
+    text-align:left;
+    min-height:56px;
+    font-family:"Times New Roman", Times, serif;
+    font-size:22px;
+    line-height:1.18;
+    color:var(--text);
+    word-break:break-word;
+  }
+
+  .rendered-token{
+    display:inline;
+  }
+
+  .muted-form{
+    color:var(--muted-form);
+  }
+
+  .empty-cell{
+    color:rgba(231,238,248,.28);
+  }
+
+  @media (max-width:980px){
+    .row{
+      grid-template-columns:1fr 1fr;
+    }
+    .search{
+      grid-column:1 / -1;
+    }
+    .card{
+      grid-template-columns:1fr;
+    }
+    .actions{
+      min-width:0;
+      width:100%;
+      flex-direction:row;
+      flex-wrap:wrap;
+    }
+    .action-btn{
+      flex:1 1 220px;
+    }
+    .word{
+      font-size:28px;
+    }
+  }
+
+  @media (max-width:640px){
+    .wrap{
+      padding:12px;
+    }
+    .word{
+      font-size:24px;
+    }
+    .meta{
+      gap:6px;
+    }
+    .chip{
+      font-size:11.5px;
+      padding:5px 9px;
+    }
+    .inflection-table{
+      min-width:640px;
+    }
+    .inflection-table thead th{
+      font-size:24px;
+    }
+    .inflection-table tbody th,
+    .inflection-table td{
+      font-size:18px;
+      padding:7px 10px;
+    }
+  }
 </style>
 </head>
 <body>
 
 <header>
   <div class="wrap">
-    <div class="brand">
-      <div class="logo"><img src="image.png" alt="Logo"></div>
-      <div>
-        <h1>Dictionarium Sanctae Marthae</h1>
-        <div class="row">
-          <select id="leftLang" class="select">
-            <option value="SLA">Slavonica</option>
-            <option value="LSA">Lingua Slavonica Antiqua</option>
-            <option value="RUS">Russica</option>
-            <option value="ALB">Albaruthenica</option>
-            <option value="UCR">Ucrainica</option>
-            <option value="POL" selected>Polonica</option>
-            <option value="SSU">Sorabica Superior</option>
-            <option value="SIN">Sorabica Inferior</option>
-            <option value="SLO">Slovaca</option>
-            <option value="BOH">Bohemica</option>
-            <option value="SLV">Slovena</option>
-            <option value="CRO">Croatica</option>
-            <option value="SER">Serbica</option>
-            <option value="MAC">Macedonica</option>
-            <option value="BUL">Bulgarica</option>
-            <option value="JAP">Japonica</option>
-            <option value="COR">Coreana</option>
-          </select>
+    <h1>Dictionarium — słownik prasłowiański</h1>
 
-          <select id="rightLang" class="select">
-            <option value="SLA" selected>Slavonica</option>
-            <option value="LSA">Lingua Slavonica Antiqua</option>
-            <option value="RUS">Russica</option>
-            <option value="ALB">Albaruthenica</option>
-            <option value="UCR">Ucrainica</option>
-            <option value="POL">Polonica</option>
-            <option value="SSU">Sorabica Superior</option>
-            <option value="SIN">Sorabica Inferior</option>
-            <option value="SLO">Slovaca</option>
-            <option value="BOH">Bohemica</option>
-            <option value="SLV">Slovena</option>
-            <option value="CRO">Croatica</option>
-            <option value="SER">Serbica</option>
-            <option value="MAC">Macedonica</option>
-            <option value="BUL">Bulgarica</option>
-            <option value="JAP">Japonica</option>
-            <option value="COR">Coreana</option>
-          </select>
+    <div class="row">
+      <select id="leftLang" class="select" title="Język po lewej (źródłowy)">
+        <option value="POL">Polonica</option>
+        <option value="CZE">Bohemica</option>
+        <option value="RUS">Russica</option>
+        <option value="SCL">Slavonica</option>
+      </select>
 
-          <label class="search">
-            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23C15.99 6.01 13.32 3.34 9.99 3.34S4 6.01 4 9.34s2.67 6 5.99 6c1.61 0 3.09-.59 4.23-1.57l.27.28v.79L20 20.33 21.33 19 15.5 14Zm-5.51 0C7.47 14 6 12.53 6 10.84S7.47 7.68 9.99 7.68s3.99 1.47 3.99 3.16S12.52 14 9.99 14Z"/></svg>
-            <input id="query" placeholder="Scribe initium verbi" autocomplete="off" />
-          </label>
-        </div>
-      </div>
+      <select id="rightLang" class="select" title="Język po prawej (docelowy)">
+        <option value="SCL">Slavonica</option>
+        <option value="POL">Polonica</option>
+        <option value="CZE">Bohemica</option>
+        <option value="RUS">Russica</option>
+      </select>
+
+      <label class="search" title="Szukaj prefiksu w kolumnie źródłowej">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23C15.99 6.01 13.32 3.34 9.99 3.34S4 6.01 4 9.34s2.67 6 5.99 6c1.61 0 3.09-.59 4.23-1.57l.27.28v.79L20 20.33 21.33 19 15.5 14Zm-5.51 0C7.47 14 6 12.53 6 10.84S7.47 7.68 9.99 7.68s3.99 1.47 3.99 3.16S12.52 14 9.99 14Z"/>
+        </svg>
+        <input id="query" placeholder="Wpisz początek słowa, np. dom" autocomplete="off" />
+      </label>
     </div>
-    <div class="hint">Translationes recentiores sub puga “translationes” praesto sunt.</div>
+
+    <div class="hint">
+      Wyniki filtrują się po <em>prefiksie</em> w wybranej kolumnie po lewej. Tłumaczenia nowożytne otwiera przycisk
+      <strong>translationes</strong>, a tabela odmiany przycisk <strong>declinatio</strong> / <strong>coniugatio</strong>.
+      <span id="debugHint" class="debug-note" hidden>Tryb testowy aktywny: wpisz <strong>Soul</strong>, aby obejrzeć działanie markera <code>&amp;7</code>.</span>
+    </div>
   </div>
 </header>
 
 <main class="wrap">
-  <div id="status" class="status">Ładowanie danych…</div>
-  <div class="topbar" id="topbar" style="display:none">
-    <div class="small">numerus verborum totus: <span class="count" id="countAll">0</span></div>
-    <div class="small">numerus verborum quaesitorum: <span class="count" id="countShown">0</span></div>
-  </div>
-  <div class="cards" id="cards"></div>
-</main>
+  <div id="status" class="status">Ładowanie danych z PDF…</div>
 
-<footer>
-  <div class="wrap">Auctor huius dictionarii Antonius Sofronus est.</div>
-</footer>
+  <div class="topbar" id="topbar" style="display:none">
+    <div class="small"><span id="countAll" class="count">0</span> rekordów wczytano</div>
+    <div class="small"><span id="countShown" class="count">0</span> pasujących wyników</div>
+  </div>
+
+  <div id="cards" class="cards"></div>
+</main>
 
 <script>
 (async function(){
-  const XLSX_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZoAolAWEBzbwXjPzA67tmva1TyOR2AYB-49vqXPo98MXodomWq2dGKGewO_z8-iZIYbr0x6Z5jbPP/pub?output=xlsx";
-
-  const leftSel  = document.getElementById('leftLang');
-  const rightSel = document.getElementById('rightLang');
-  const queryInp = document.getElementById('query');
-  const statusEl = document.getElementById('status');
-  const cardsEl  = document.getElementById('cards');
-  const topbar   = document.getElementById('topbar');
-  const countAll = document.getElementById('countAll');
-  const countShown = document.getElementById('countShown');
-
+  const PDF_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIzVmMRmSAz-AE8rP_lLJfvHNnVRp5kGQFOCkn9lANWzeEkugCT9LO-JFRDhCLwZgvOuJBnV3shtRV/pub?gid=0&single=true&output=pdf";
+  const DEBUG_LOCAL_SAMPLE = true;
   const DEFAULT_FALLBACK = "POL";
+  const V_MARKER = "&7";
 
-  const cols = ["SLA","PSL","CHANDŽI","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL","JAP","COR"];
+  const CASE_ROWS = [
+    { key: "nom", label: "Nominativus" },
+    { key: "acc", label: "Accusativus" },
+    { key: "gen", label: "Genetivus" },
+    { key: "loc", label: "Locativus" },
+    { key: "dat", label: "Dativus" },
+    { key: "ins", label: "Instrumentalis" },
+    { key: "voc", label: "Vocativus" },
+  ];
 
-  function debounce(fn, d=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); } }
-  function normalize(s){ return (s||"").toLowerCase().trim(); }
-  function prefixMatch(cell,q){
-    if(!cell||!q) return false;
-    return normalize(cell).split(/[,;/|]/).some(p=>p.trim().startsWith(normalize(q)));
-  }
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-  }
+  const NUMBER_COLS = [
+    { key: "sg", label: "Singularis" },
+    { key: "du", label: "Dualis" },
+    { key: "pl", label: "Pluralis" },
+  ];
 
-  function isVerbPOS(pos){ return /\b(verbum|vb\.?|v\.?)\b/i.test(pos||""); }
-  function isAdjPOS(pos){ return /\b(adiectiv|adjectiv|adj\.?)\b/i.test(pos||""); }
-  function isNounPOS(pos){ return /\b(nomen|nom\.?|n\.?)\b/i.test(pos||""); }
-  function isPronPOS(pos){ return /\b(pronomen|pron\.?)\b/i.test(pos||""); }
+  const statusEl = document.getElementById("status");
+  const cardsEl = document.getElementById("cards");
+  const topbarEl = document.getElementById("topbar");
+  const countAllEl = document.getElementById("countAll");
+  const countShownEl = document.getElementById("countShown");
+  const leftSel = document.getElementById("leftLang");
+  const rightSel = document.getElementById("rightLang");
+  const queryInp = document.getElementById("query");
+  const debugHintEl = document.getElementById("debugHint");
 
-  function aspectOnly(iv){
-    const m=(iv||"").match(/\b(impf\.?|perf\.?)\b/i);
-    if(!m) return "";
-    return m[1].toLowerCase().startsWith('impf')?'impf.':'perf.';
-  }
-
-  function parseV(vStr, len){
-    const parts = String(vStr||"").split(";").map(s=>s.trim());
-    const out = new Array(len).fill("—");
-    for(let i=0;i<Math.min(parts.length,len);i++){ out[i] = parts[i] || "—"; }
-    return out;
-  }
-
-  function buildNounLikeTable(vStr){
-    const v = parseV(vStr, 16);
-    const cases = ["Nominativus","Accusativus","Genetivus","Locativus","Dativus","Instrumentalis","Vocativus"];
-    const table = document.createElement('table'); table.className='morph-table';
-    const thead = document.createElement('thead');
-    thead.innerHTML = `<tr><th class="cases"> </th><th>Singularis</th><th>Dualis</th><th>Pluralis</th></tr>`;
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    const S = [0,1,2,3,4,5,6];
-    const Dn = v[7], Dgl = v[8], Ddi = v[9];
-    const P = [10,11,12,13,14,15,10];
-
-    cases.forEach((c, i)=>{
-      const tr = document.createElement('tr');
-      tr.appendChild(tdLabel(c));
-      tr.appendChild(td(v[S[i]]));
-      if(i===0){ const t=td(Dn); t.rowSpan=2; tr.appendChild(t); }
-      else if(i===2){ const t=td(Dgl); t.rowSpan=2; tr.appendChild(t); }
-      else if(i===4){ const t=td(Ddi); t.rowSpan=2; tr.appendChild(t); }
-      else if(i===6){ tr.appendChild(td(Dn)); }
-      tr.appendChild(td(v[P[i]]));
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    return table;
-
-    function tdLabel(txt){ const x=document.createElement('td'); x.className='cases'; x.textContent=txt; return x; }
-    function td(val){ const x=document.createElement('td'); x.textContent=val && val.length?val:'—'; return x; }
+  if (DEBUG_LOCAL_SAMPLE) {
+    debugHintEl.hidden = false;
   }
 
-  function buildAdjTable(vStr){
-    const v = parseV(vStr, 25);
-    const g = i => v[i-1] || '—';
-
-    const table = document.createElement('table'); table.className='morph-table';
-    const tbody = document.createElement('tbody');
-
-    tbody.appendChild(rowHead(['Indefinitum','Adverbium','Comparativus','Superlativus']));
-    { const tr=document.createElement('tr'); tr.append(td(g(1)), td(g(2)), td(g(3)), td(g(4))); tbody.appendChild(tr); }
-
-    tbody.appendChild(sectionRow('Singularis',5));
-    tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Nominativus'));
-      const left=document.createElement('td'); left.colSpan=2; left.textContent=g(5); tr.appendChild(left);
-      tr.append(td(g(10)), td(g(11))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Accusativus'));
-      tr.append(td(g(6)), td(g(5)), td(g(10)), td(g(12))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Genetivus'));
-      const left=document.createElement('td'); left.colSpan=3; left.textContent=g(6); tr.appendChild(left);
-      tr.append(td(g(13))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Locativus'));
-      const left=document.createElement('td'); left.colSpan=3; left.textContent=g(7); tr.appendChild(left);
-      tr.append(td(g(14))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Dativus'));
-      const left=document.createElement('td'); left.colSpan=3; left.textContent=g(8); tr.appendChild(left);
-      tr.append(td(g(14))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Instrumentalis'));
-      const left=document.createElement('td'); left.colSpan=3; left.textContent=g(9); tr.appendChild(left);
-      tr.append(td(g(15))); tbody.appendChild(tr); }
-
-    tbody.appendChild(sectionRow('Dualis',5));
-    tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Nom., Acc.'));
-      const a=document.createElement('td'); a.colSpan=2; a.textContent=g(16); tr.appendChild(a);
-      const b=document.createElement('td'); b.colSpan=2; b.textContent=g(19); tr.appendChild(b); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Gen., Loc.'));
-      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(17); tr.appendChild(one); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Dat., Instr.'));
-      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(18); tr.appendChild(one); tbody.appendChild(tr); }
-
-    tbody.appendChild(sectionRow('Pluralis',5));
-    tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Nominativus'));
-      tr.append(td(g(20)), td(g(21)), td(g(25)), td(g(21))); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Accusativus'));
-      const left=document.createElement('td'); left.colSpan=2; left.textContent=g(21); tr.appendChild(left);
-      tr.append(td(g(25)), td(g(21))); tbody.appendChild(tr); }
-
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Genetivus'));
-      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(22); tr.appendChild(one); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Locativus'));
-      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(22); tr.appendChild(one); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Dativus'));
-      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(23); tr.appendChild(one); tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLabel('Instrumentalis'));
-      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(24); tr.appendChild(one); tbody.appendChild(tr); }
-
-    table.appendChild(tbody);
-    return table;
-
-    function tdLabel(txt){ const x=document.createElement('td'); x.className='cases'; x.textContent=txt; return x; }
-    function td(val){ const x=document.createElement('td'); x.textContent=val && val.length?val:'—'; return x; }
-    function sectionRow(t, span){ const tr=document.createElement('tr'); const th=document.createElement('th'); th.textContent=t; th.colSpan=span; tr.appendChild(th); return tr; }
-    function rowHead(labels, firstIsCases=false){ const tr=document.createElement('tr'); labels.forEach((lab,i)=>{ const th=document.createElement('th'); th.textContent = firstIsCases&&i===0?' ':lab; if(firstIsCases&&i===0) th.className='cases'; tr.appendChild(th); }); return tr; }
+  function debounce(fn, delay = 180){
+    let t = null;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), delay);
+    };
   }
 
-  function buildVerbTable(aspectStr, vStr){
-    const isImpf = /\bimpf\.?\b/i.test(aspectStr||"");
-    const base = parseV(vStr, 30);
-    const v = isImpf ? base : ["", ...base];
-
-    const table = document.createElement('table'); table.className='morph-table';
-    const thead = document.createElement('thead');
-    const topCols = isImpf ? ['Incipere','Infinitivus','Supinum','Nomen verbi'] : ['', 'Infinitivus','Supinum','Nomen verbi'];
-    thead.appendChild(rowFrom(topCols, 'th'));
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    const slots=[];
-
-    { const tr = document.createElement('tr');
-      const t0=document.createElement('td'), t1=document.createElement('td'),
-            t2=document.createElement('td'), t3=document.createElement('td');
-      tr.append(t0,t1,t2,t3); tbody.appendChild(tr);
-      slots.push(t0,t1,t2,t3); }
-
-    tbody.appendChild(sectionHeaderRow('Participia', 3));
-    { const tr=document.createElement('tr');
-      const thEmpty=document.createElement('th'); thEmpty.className='cases'; thEmpty.textContent=' '; tr.appendChild(thEmpty);
-      const th1=document.createElement('th'); th1.textContent='Praeteritum'; tr.appendChild(th1);
-      const th2=document.createElement('th'); th2.textContent=isImpf?'Praesens':'Futurum'; tr.appendChild(th2);
-      tbody.appendChild(tr); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Perfectivum')); const t=document.createElement('td'); t.colSpan=2; tr.appendChild(t); tbody.appendChild(tr); slots.push(t); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Activum')); const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr); slots.push(a,b); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Passivum')); const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr); slots.push(a,b); }
-
-    tbody.appendChild(sectionHeaderRow('Praesens', 4));
-    tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
-    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
-
-    const tenseBlock = isImpf ? 'Imperfectum' : 'Aoristus';
-    tbody.appendChild(sectionHeaderRow(tenseBlock, 4));
-    tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
-    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
-
-    tbody.appendChild(sectionHeaderRow('Imperativus', 4));
-    tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
-    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[2]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
-    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
-
-    table.appendChild(tbody);
-    slots.forEach((cell, i)=>{ cell.textContent = v[i] || (i===0 ? "" : "—"); });
-    return table;
-
-    function sectionHeaderRow(title, span){ const tr=document.createElement('tr'); const th=document.createElement('th'); th.textContent=title; th.colSpan=span; tr.appendChild(th); return tr; }
-    function rowFrom(labels, tag='td', italicFirst=false){ const tr=document.createElement('tr'); labels.forEach((lab,i)=>{ const el=document.createElement(tag); if(italicFirst && i===0){ el.className='cases'; el.textContent=' '; } else el.textContent=lab; tr.appendChild(el); }); return tr; }
-    function td(colSpan=1){ const x=document.createElement('td'); if(colSpan>1) x.colSpan=colSpan; return x; }
-    function tdLab(txt){ const x=document.createElement('td'); x.textContent=txt; x.className='cases'; return x; }
+  function normalize(value){
+    return (value || "").toLowerCase().trim();
   }
 
-  async function loadXLSX(){
-    statusEl.textContent = "Ładowanie danych z XLSX…";
-    const buf = await fetch(XLSX_URL, {cache: "no-store"}).then(r=>r.arrayBuffer());
-    const wb  = XLSX.read(new Uint8Array(buf), { type: "array" });
-    const ws  = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { defval:"", raw:true });
+  function prefixMatch(cell, q){
+    if (!cell || !q) return false;
+    const parts = String(cell)
+      .split(/[,;|/]/g)
+      .map(s => s.trim())
+      .filter(Boolean);
 
-    const normKey = k => (k||"").toString().trim().toUpperCase();
+    const probe = normalize(q);
+    const haystack = parts.length ? parts : [String(cell).trim()];
+    return haystack.some(part => normalize(part).startsWith(probe));
+  }
 
-    const out=[];
-    for(const r of rows){
-      const rec = {};
-      for(const k of Object.keys(r)){ rec[normKey(k)] = (r[k] ?? "").toString().trim(); }
-      const row = {};
-      for(const c of cols) row[c] = rec[c] || "";
-      if(cols.some(k=>row[k])) out.push(row);
+  function isVerb(posValue){
+    const pos = normalize(posValue).replace(/\s+/g, " ");
+    return /\b(verbum|verb|v\.?)\b/.test(pos);
+  }
+
+  function isAdjective(posValue){
+    const pos = normalize(posValue).replace(/\s+/g, " ");
+    return /\b(adiectiv(?:um|e)?|adjectiv(?:um|e)?|adj\.?)\b/.test(pos);
+  }
+
+  function getLabelForIV(posValue){
+    if (isVerb(posValue)) return "aspectus";
+    if (isAdjective(posValue)) return "gradus comparativus";
+    return "genus";
+  }
+
+  function createDebugEntries(){
+    return [{
+      SCL: "Soul",
+      I: "nomen",
+      II: "A",
+      III: "-u-",
+      IV: "m.",
+      V: "Soul; Soul; Soulu; Souli; Soulu; Soulem̌; Soulu; &7*Soula; &7*Soulú; &7*Soulema; &7*Soulą; &7*Soulą; Souli, &7*Soulev; &7*Soulích; &7*Soulem; &7*Souli",
+      RUS: "Soul",
+      POL: "Soul",
+      CZE: "Soul"
+    }];
+  }
+
+  function recordKey(r){
+    return [r.SCL,r.I,r.II,r.III,r.IV,r.V,r.RUS,r.POL,r.CZE].join("¦");
+  }
+
+  function dedupeRecords(records){
+    const seen = new Map();
+    for (const rec of records){
+      const key = recordKey(rec);
+      if (!seen.has(key)) seen.set(key, rec);
+    }
+    return Array.from(seen.values());
+  }
+
+  /*
+    Parser pojedynczego tokenu V.
+    Zgodnie z wymaganiem marker "&7" jest niewidoczny. Jeśli stoi na początku tokenu,
+    cały token jest szary. Dodatkowo obsługujemy wariant śródtokenowy (np. "Souli, &7*Soulev"),
+    bo taki przykład padł w specyfikacji użytkownika: od markera do końca tokenu tekst staje się szary.
+  */
+  function parseOneVToken(rawToken){
+    const token = String(rawToken || "");
+    const firstMarkerIndex = token.indexOf(V_MARKER);
+
+    if (firstMarkerIndex === -1){
+      return {
+        raw: token,
+        clean: token,
+        hasMutedPart: false,
+        startsMuted: false,
+        segments: token ? [{ text: token, muted: false }] : []
+      };
     }
 
-    countAll.textContent = out.length;
-    topbar.style.display = "flex";
-    statusEl.textContent = "";
-    return out;
-  }
+    const before = token.slice(0, firstMarkerIndex);
+    const mutedTail = token.slice(firstMarkerIndex).split(V_MARKER).join("");
+    const clean = before + mutedTail;
+    const segments = [];
 
-  const data = await loadXLSX().catch(e=>{ console.error(e); statusEl.textContent="Nie udało się wczytać XLSX."; return []; });
-
-  let lastLeft = leftSel.value, lastRight = rightSel.value;
-  function enforceSlavonica(trigger){
-    const prevLeft = lastLeft, prevRight = lastRight;
-    let L = leftSel.value, R = rightSel.value;
-
-    if(trigger === 'left'){
-      if(R === 'SLA' && L === 'SLA'){
-        rightSel.value = prevLeft && prevLeft !== 'SLA' ? prevLeft : DEFAULT_FALLBACK;
-      } else if(L !== 'SLA' && R !== 'SLA'){
-        rightSel.value = 'SLA';
-      }
-    } else {
-      if(L === 'SLA' && R === 'SLA'){
-        leftSel.value = prevRight && prevRight !== 'SLA' ? prevRight : DEFAULT_FALLBACK;
-      } else if(L !== 'SLA' && R !== 'SLA'){
-        leftSel.value = 'SLA';
-      }
+    if (before){
+      segments.push({ text: before, muted: false });
+    }
+    if (mutedTail){
+      segments.push({ text: mutedTail, muted: true });
     }
 
-    lastLeft = leftSel.value; lastRight = rightSel.value;
-    closePanels(); render();
+    return {
+      raw: token,
+      clean,
+      hasMutedPart: !!mutedTail,
+      startsMuted: firstMarkerIndex === 0,
+      segments
+    };
   }
 
-  function closePanels(){
-    document.querySelectorAll('.xlat-panel.open, .morph-panel.open, .sig-panel.open').forEach(p=>p.classList.remove('open'));
-    document.querySelectorAll('.pill-btn[aria-pressed="true"]').forEach(b=>b.setAttribute('aria-pressed','false'));
+  /*
+    Parser całego pola V:
+    - split po średniku
+    - trim
+    - puste tokeny pomijamy
+    - każdy token dostaje metadane do renderowania (biały/szary fragment)
+  */
+  function parseVTokens(rawV){
+    return String(rawV || "")
+      .split(";")
+      .map(part => part.trim())
+      .filter(Boolean)
+      .map(parseOneVToken);
   }
 
-  function render(){
-    const L = leftSel.value, R = rightSel.value, q = queryInp.value.trim();
-    let rows = data;
+  /*
+    Wspólny renderer tokenów:
+    - używany w chipie V
+    - używany w komórkach tabeli odmiany
+    - separator między wieloma tokenami w tej samej komórce to "; "
+  */
+  function renderTokenGroup(container, tokenObjects, separator = "; "){
+    container.textContent = "";
 
-    if(q) rows = rows.filter(r => prefixMatch(r[L], q));
-
-    cardsEl.innerHTML = "";
-    countShown.textContent = rows.length;
-
-    if(!q){
-      statusEl.textContent = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias.";
+    if (!tokenObjects || !tokenObjects.length){
       return;
     }
-    statusEl.textContent = "";
 
-    rows.forEach(r=>{
-      const card = document.createElement('div'); card.className='card';
-      const head = document.createElement('div'); head.className='head';
+    tokenObjects.forEach((tokenObj, tokenIndex) => {
+      const outer = document.createElement("span");
+      outer.className = "rendered-token";
 
-      const word = document.createElement('div'); word.className='word';
-      const lemma = (r[R]||"(brak)").trim();
-      word.append(document.createTextNode(lemma));
-
-      if(r["0"]){
-        const br=document.createElement('span');
-        br.className='bracket';
-        br.textContent=`[${r["0"]}]`;
-        word.append(br);
-      }
-      if(r["CHANDŽI"]){
-        const cz=document.createElement('span');
-        cz.className='bracket';
-        cz.textContent = `「${r["CHANDŽI"]}」`;
-        word.append(cz);
-      }
-
-      head.appendChild(word);
-
-      const meta = document.createElement('div'); meta.className='meta';
-      const pos = (r.I||"");
-      const chips = [
-        ["pars orationis", r.I],
-        ["paradigma accentualia", r.II],
-        ["exemplum", r.III],
-        [ isVerbPOS(pos) ? "aspectus" : (isAdjPOS(pos) ? "gradus comparativus" : "genus"), isVerbPOS(pos) ? aspectOnly(r.IV) : r.IV ]
-      ];
-      chips.forEach(([lab,val])=>{
-        if(!val) return;
-        const s=document.createElement('span'); s.className='chip'; s.textContent = `${lab}: ${val}`;
-        meta.appendChild(s);
-      });
-      head.appendChild(meta);
-
-      const btnCol=document.createElement('div'); btnCol.className='btn-col';
-
-      const bT=document.createElement('button');
-      bT.className='pill-btn'; bT.textContent='translationes';
-      bT.setAttribute('aria-pressed','false');
-      btnCol.appendChild(bT);
-
-      const bS=document.createElement('button');
-      bS.className='pill-btn'; bS.textContent='significatio';
-      bS.setAttribute('aria-pressed','false');
-      btnCol.appendChild(bS);
-
-      const allowMorph = isNounPOS(pos) || isPronPOS(pos) || isAdjPOS(pos) || isVerbPOS(pos);
-      let bM=null, mPanel=null;
-      if(allowMorph){
-        bM=document.createElement('button');
-        bM.className='pill-btn';
-        bM.textContent = isVerbPOS(pos) ? 'coniugatio' : 'declinatio';
-        bM.setAttribute('aria-pressed','false');
-        btnCol.appendChild(bM);
-
-        mPanel=document.createElement('div');
-        mPanel.className='morph-panel';
-        const mHead=document.createElement('div'); mHead.className='m-head';
-        mHead.textContent = isVerbPOS(pos) ? 'coniugatio' : 'declinatio';
-        const mBody=document.createElement('div'); mBody.className='m-body';
-
-        const table = isVerbPOS(pos) ? buildVerbTable(aspectOnly(r.IV), r.V)
-                                     : (isAdjPOS(pos) ? buildAdjTable(r.V) : buildNounLikeTable(r.V));
-
-        mBody.appendChild(table);
-        mPanel.appendChild(mHead); mPanel.appendChild(mBody);
-      }
-
-      card.appendChild(head);
-      card.appendChild(btnCol);
-      cardsEl.appendChild(card);
-
-      const x = document.createElement('div'); x.className='xlat-panel';
-      x.innerHTML = `
-        <div class="x-head">translationes</div>
-        <div class="x-body">
-          ${langRow('Slavonica', r.SLA)}
-          ${langRow('Protoslavica', r.PSL)}
-          ${langRow('Lingua Slavonica Antiqua', r.LSA)}
-          ${langRow('Russica', r.RUS)}
-          ${langRow('Albaruthenica', r.ALB)}
-          ${langRow('Ucrainica', r.UCR)}
-          ${langRow('Polonica', r.POL)}
-          ${langRow('Sorabica Superior', r.SSU)}
-          ${langRow('Sorabica Inferior', r.SIN)}
-          ${langRow('Slovaca', r.SLO)}
-          ${langRow('Bohemica', r.BOH)}
-          ${langRow('Slovena', r.SLV)}
-          ${langRow('Croatica', r.CRO)}
-          ${langRow('Serbica', r.SER)}
-          ${langRow('Macedonica', r.MAC)}
-          ${langRow('Bulgarica', r.BUL)}
-          ${langRow('Japonica', r.JAP)}
-          ${langRow('Coreana', r.COR)}
-        </div>`;
-      cardsEl.appendChild(x);
-
-      const sP = document.createElement('div'); sP.className='sig-panel';
-      sP.innerHTML = `
-        <div class="s-head">significatio</div>
-        <div class="s-body"><div class="sig-text">${escapeHtml((r.VI||"—").trim() || "—")}</div></div>
-      `;
-      cardsEl.appendChild(sP);
-
-      if(mPanel) cardsEl.appendChild(mPanel);
-
-      bT.addEventListener('click', ()=>{
-        const open = !x.classList.contains('open');
-        closePanels();
-        if(open){
-          x.classList.add('open');
-          bT.setAttribute('aria-pressed','true');
-          x.scrollIntoView({behavior:'smooth', block:'nearest'});
+      tokenObj.segments.forEach(seg => {
+        if (!seg.text) return;
+        const span = document.createElement("span");
+        span.textContent = seg.text;
+        if (seg.muted){
+          span.className = "muted-form";
+          span.title = tokenObj.clean;
+          outer.title = tokenObj.clean;
         }
+        outer.appendChild(span);
       });
 
-      bS.addEventListener('click', ()=>{
-        const open = !sP.classList.contains('open');
-        closePanels();
-        if(open){
-          sP.classList.add('open');
-          bS.setAttribute('aria-pressed','true');
-          sP.scrollIntoView({behavior:'smooth', block:'nearest'});
-        }
-      });
+      container.appendChild(outer);
 
-      if(bM){
-        bM.addEventListener('click', ()=>{
-          const open = !mPanel.classList.contains('open');
-          closePanels();
-          if(open){
-            mPanel.classList.add('open');
-            bM.setAttribute('aria-pressed','true');
-            mPanel.scrollIntoView({behavior:'smooth', block:'nearest'});
-          }
-        });
-      }
-
-      function langRow(name, val){
-        const v = (val && String(val).trim().length) ? String(val).trim() : "—";
-        return `<div class="xlat-item"><div class="lab">${name}</div><div class="val">${escapeHtml(v)}</div></div>`;
+      if (tokenIndex < tokenObjects.length - 1){
+        container.appendChild(document.createTextNode(separator));
       }
     });
   }
 
-  leftSel.addEventListener('change', ()=>enforceSlavonica('left'));
-  rightSel.addEventListener('change', ()=>enforceSlavonica('right'));
-  queryInp.addEventListener('input', debounce(()=>{ closePanels(); render(); },120));
+  /*
+    Mapowanie 16 tokenów V -> tabela 7x3:
+    1-7   = Singularis (kolejno 7 rzędów)
+    8     = Dualis: nom, acc, voc
+    9     = Dualis: gen, loc
+    10    = Dualis: dat, ins
+    11    = Pluralis: nom, voc
+    12    = Pluralis: acc
+    13    = Pluralis: gen
+    14    = Pluralis: loc
+    15    = Pluralis: dat
+    16    = Pluralis: ins
 
-  if(data.length){
-    statusEl.textContent = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias.";
+    Jeśli tokenów jest mniej, komórki zostają puste.
+    Jeśli tokenów jest więcej, nadmiar jest nadal widoczny w chipie V, ale nie jest mapowany do tabeli.
+  */
+  function buildInflectionGrid(rawV){
+    const tokens = parseVTokens(rawV);
+    const grid = {
+      sg: Array.from({ length: 7 }, () => []),
+      du: Array.from({ length: 7 }, () => []),
+      pl: Array.from({ length: 7 }, () => [])
+    };
+
+    const put = (colKey, rowIndex, tokenIndex) => {
+      if (tokens[tokenIndex]) {
+        grid[colKey][rowIndex].push(tokens[tokenIndex]);
+      }
+    };
+
+    for (let i = 0; i < 7; i++){
+      put("sg", i, i);
+    }
+
+    put("du", 0, 7);
+    put("du", 1, 7);
+    put("du", 6, 7);
+
+    put("du", 2, 8);
+    put("du", 3, 8);
+
+    put("du", 4, 9);
+    put("du", 5, 9);
+
+    put("pl", 0, 10);
+    put("pl", 6, 10);
+
+    put("pl", 1, 11);
+    put("pl", 2, 12);
+    put("pl", 3, 13);
+    put("pl", 4, 14);
+    put("pl", 5, 15);
+
+    return { tokens, grid };
   }
+
+  function renderCellContent(cell, tokenObjects){
+    cell.textContent = "";
+    if (!tokenObjects || !tokenObjects.length){
+      const empty = document.createElement("span");
+      empty.className = "empty-cell";
+      empty.textContent = "";
+      cell.appendChild(empty);
+      return;
+    }
+    renderTokenGroup(cell, tokenObjects, "; ");
+  }
+
+  function buildInflectionTable(record){
+    const shell = document.createElement("div");
+    shell.className = "inflection-shell";
+
+    const caption = document.createElement("p");
+    caption.className = "inflection-caption";
+    caption.textContent = isVerb(record.I)
+      ? "Tabela otwarta z kolumny V (coniugatio): kolor szary oznacza formę oznaczoną markerem &7."
+      : "Tabela otwarta z kolumny V (declinatio): kolor szary oznacza formę oznaczoną markerem &7.";
+    shell.appendChild(caption);
+
+    const table = document.createElement("table");
+    table.className = "inflection-table";
+
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+
+    const corner = document.createElement("th");
+    corner.className = "corner";
+    corner.textContent = " ";
+    headRow.appendChild(corner);
+
+    for (const col of NUMBER_COLS){
+      const th = document.createElement("th");
+      th.textContent = col.label;
+      headRow.appendChild(th);
+    }
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    const { grid } = buildInflectionGrid(record.V);
+
+    CASE_ROWS.forEach((row, rowIndex) => {
+      const tr = document.createElement("tr");
+
+      const rowHead = document.createElement("th");
+      rowHead.textContent = row.label;
+      tr.appendChild(rowHead);
+
+      for (const col of NUMBER_COLS){
+        const td = document.createElement("td");
+        renderCellContent(td, grid[col.key][rowIndex]);
+        tr.appendChild(td);
+      }
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    shell.appendChild(table);
+
+    return shell;
+  }
+
+  function createMetaChip(label, value){
+    if (!value) return null;
+    const chip = document.createElement("span");
+    chip.className = "chip";
+
+    const lab = document.createElement("span");
+    lab.className = "chip-label";
+    lab.textContent = label + ":";
+
+    const val = document.createElement("span");
+    val.className = "chip-value";
+    val.textContent = value;
+
+    chip.appendChild(lab);
+    chip.appendChild(val);
+    return chip;
+  }
+
+  function createInfoChipFromV(rawV){
+    const tokens = parseVTokens(rawV);
+    if (!tokens.length) return null;
+
+    const chip = document.createElement("span");
+    chip.className = "chip info-chip";
+    renderTokenGroup(chip, tokens, "; ");
+    return chip;
+  }
+
+  function createTranslationPanel(record){
+    const panel = document.createElement("div");
+    panel.className = "panel";
+
+    const list = document.createElement("div");
+    list.className = "translations-list";
+
+    [
+      ["Polonica", record.POL],
+      ["Bohemica", record.CZE],
+      ["Russica", record.RUS]
+    ].forEach(([label, value]) => {
+      const block = document.createElement("div");
+      block.className = "translation-block";
+
+      const lab = document.createElement("div");
+      lab.className = "lab";
+      lab.textContent = label;
+
+      const val = document.createElement("div");
+      val.className = "val";
+      val.textContent = value || "—";
+
+      block.appendChild(lab);
+      block.appendChild(val);
+      list.appendChild(block);
+    });
+
+    panel.appendChild(list);
+    return panel;
+  }
+
+  function createCard(record, rightLang){
+    const card = document.createElement("article");
+    card.className = "card";
+
+    const head = document.createElement("div");
+    head.className = "head";
+
+    const headline = document.createElement("div");
+    headline.className = "word";
+    headline.textContent = (record[rightLang] || "(brak)").trim();
+    head.appendChild(headline);
+
+    if (rightLang !== "SCL" && record.SCL){
+      const sublemma = document.createElement("div");
+      sublemma.className = "sublemma";
+      sublemma.textContent = "Slavonica: " + record.SCL;
+      head.appendChild(sublemma);
+    }
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+
+    const labelIV = getLabelForIV(record.I);
+
+    const chipPos = createMetaChip("pars orationis", record.I);
+    const chipII = createMetaChip("paradigma accentualia", record.II);
+    const chipIII = createMetaChip("exemplum", record.III);
+    const chipIV = createMetaChip(labelIV, record.IV);
+    const chipV = createInfoChipFromV(record.V);
+
+    [chipPos, chipII, chipIII, chipIV, chipV].filter(Boolean).forEach(ch => meta.appendChild(ch));
+    head.appendChild(meta);
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
+
+    const translationsBtn = document.createElement("button");
+    translationsBtn.type = "button";
+    translationsBtn.className = "action-btn";
+    translationsBtn.textContent = "translationes";
+    translationsBtn.setAttribute("aria-pressed", "false");
+    translationsBtn.setAttribute("aria-expanded", "false");
+
+    const inflectionBtn = document.createElement("button");
+    inflectionBtn.type = "button";
+    inflectionBtn.className = "action-btn";
+    inflectionBtn.textContent = isVerb(record.I) ? "coniugatio" : "declinatio";
+    inflectionBtn.setAttribute("aria-pressed", "false");
+    inflectionBtn.setAttribute("aria-expanded", "false");
+
+    actions.appendChild(translationsBtn);
+    actions.appendChild(inflectionBtn);
+
+    const transPanel = createTranslationPanel(record);
+    const inflectPanel = document.createElement("div");
+    inflectPanel.className = "panel";
+    const gridData = buildInflectionGrid(record.V);
+    const hasVTokens = gridData.tokens.length > 0;
+
+    if (hasVTokens){
+      inflectPanel.appendChild(buildInflectionTable(record));
+    } else {
+      inflectionBtn.disabled = true;
+      inflectionBtn.title = "Brak danych w kolumnie V.";
+    }
+
+    translationsBtn.addEventListener("click", () => {
+      const open = !transPanel.classList.contains("open");
+      transPanel.classList.toggle("open", open);
+      translationsBtn.setAttribute("aria-pressed", open ? "true" : "false");
+      translationsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+
+    inflectionBtn.addEventListener("click", () => {
+      if (inflectionBtn.disabled) return;
+      const open = !inflectPanel.classList.contains("open");
+      inflectPanel.classList.toggle("open", open);
+      inflectionBtn.setAttribute("aria-pressed", open ? "true" : "false");
+      inflectionBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+
+    card.appendChild(head);
+    card.appendChild(actions);
+    card.appendChild(transPanel);
+    card.appendChild(inflectPanel);
+
+    return card;
+  }
+
+  async function loadRecordsFromPdf(){
+    const url = PDF_URL + "&cb=" + Date.now();
+    const loadingTask = pdfjsLib.getDocument({ url, cMapPacked: true, useSystemFonts: true });
+    const pdf = await loadingTask.promise;
+
+    const columnLabels = ["SCL","I","II","III","IV","V","RUS","POL","CZE"];
+    let anchors = null;
+    const records = [];
+
+    for (let p = 1; p <= pdf.numPages; p++){
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const items = content.items
+        .map(it => {
+          const x = it.transform[4];
+          const y = it.transform[5];
+          return { str: (it.str || "").trim(), x, y };
+        })
+        .filter(it => it.str);
+
+      items.sort((a, b) => b.y - a.y || a.x - b.x);
+
+      const rows = [];
+      const tolY = 3.5;
+      for (const it of items){
+        const row = rows.length ? rows[rows.length - 1] : null;
+        if (!row || Math.abs(row.y - it.y) > tolY){
+          rows.push({ y: it.y, items: [it] });
+        } else {
+          row.items.push(it);
+        }
+      }
+
+      for (const row of rows){
+        const joined = row.items.map(i => i.str).join(" ");
+        const hasAll = columnLabels.every(label => joined.includes(label));
+        if (hasAll){
+          const found = {};
+          for (const label of columnLabels){
+            let cand = row.items.find(i => i.str === label);
+            if (!cand) cand = row.items.find(i => i.str.includes(label));
+            if (cand) found[label] = cand.x;
+          }
+          if (Object.keys(found).length >= 7){
+            anchors = found;
+          }
+          break;
+        }
+      }
+
+      if (!anchors){
+        for (const row of rows){
+          const texts = row.items.map(i => i.str);
+          const hits = ["RUS","POL","CZE"].filter(x => texts.includes(x)).length;
+          if (hits >= 3){
+            const found = {};
+            for (const label of columnLabels){
+              const cand = row.items.find(i => i.str === label);
+              if (cand) found[label] = cand.x;
+            }
+            if (Object.keys(found).length >= 5){
+              anchors = found;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!anchors) continue;
+
+      const fullOrder = ["SCL","I","II","III","IV","V","RUS","POL","CZE"];
+      const present = fullOrder
+        .map(label => ({ label, x: anchors[label] }))
+        .filter(col => Number.isFinite(col.x))
+        .sort((a, b) => a.x - b.x);
+
+      if (present.length && present.length < fullOrder.length){
+        const minX = present[0].x;
+        const maxX = present[present.length - 1].x;
+        const step = (maxX - minX) / (fullOrder.length - 1 || 1);
+        const have = new Set(present.map(col => col.label));
+        for (let i = 0; i < fullOrder.length; i++){
+          const label = fullOrder[i];
+          if (!have.has(label)){
+            present.push({ label, x: minX + step * i });
+          }
+        }
+        present.sort((a, b) => a.x - b.x);
+      }
+
+      const boundaries = [];
+      for (let i = 0; i < present.length - 1; i++){
+        boundaries.push((present[i].x + present[i + 1].x) / 2);
+      }
+
+      function colByX(x){
+        for (let i = 0; i < present.length; i++){
+          const left = i === 0 ? -Infinity : boundaries[i - 1];
+          const right = i === present.length - 1 ? Infinity : boundaries[i];
+          if (x >= left && x < right) return present[i].label;
+        }
+        return "SCL";
+      }
+
+      for (const row of rows){
+        const rowText = row.items.map(i => i.str).join(" ");
+        const isHeader = columnLabels.every(label => rowText.includes(label));
+        if (isHeader) continue;
+
+        const rec = { SCL:"", I:"", II:"", III:"", IV:"", V:"", RUS:"", POL:"", CZE:"" };
+        const buckets = { SCL:[], I:[], II:[], III:[], IV:[], V:[], RUS:[], POL:[], CZE:[] };
+
+        for (const it of row.items){
+          const label = colByX(it.x);
+          if (label && buckets[label]){
+            buckets[label].push(it.str);
+          }
+        }
+
+        for (const key of Object.keys(rec)){
+          rec[key] = buckets[key].join(" ").replace(/\s+/g, " ").trim();
+        }
+
+        const nonEmptyCols = Object.values(rec).filter(Boolean).length;
+        if (nonEmptyCols >= 2){
+          records.push(rec);
+        }
+      }
+    }
+
+    return dedupeRecords(records);
+  }
+
+  let allData = [];
+  let lastLeft = leftSel.value;
+  let lastRight = rightSel.value;
+
+  function render(){
+    const left = leftSel.value;
+    const right = rightSel.value;
+    const q = queryInp.value.trim();
+
+    let rows = allData.slice();
+    if (q){
+      rows = rows.filter(rec => prefixMatch(rec[left], q));
+    }
+
+    cardsEl.innerHTML = "";
+    countShownEl.textContent = rows.length;
+
+    if (!q){
+      if (allData.length){
+        const suffix = DEBUG_LOCAL_SAMPLE
+          ? ' Dla testu markera &7 wpisz <b>Soul</b>.'
+          : '';
+        statusEl.innerHTML =
+          'Wpisz w polu wyszukiwania, np. <b>dom</b>. Ustaw po lewej <b>Polonica</b>, po prawej <b>Slavonica</b>.' + suffix;
+      } else {
+        statusEl.textContent = "Brak danych do wyświetlenia.";
+      }
+      return;
+    }
+
+    statusEl.textContent = "";
+
+    rows.sort((a, b) => (a[right] || "").localeCompare((b[right] || ""), "pl"));
+
+    for (const rec of rows){
+      cardsEl.appendChild(createCard(rec, right));
+    }
+  }
+
+  function enforceSlavonica(trigger){
+    const prevLeft = lastLeft;
+    const prevRight = lastRight;
+
+    if (trigger === "left"){
+      if (leftSel.value === "SCL" && rightSel.value === "SCL"){
+        rightSel.value = prevLeft && prevLeft !== "SCL" ? prevLeft : DEFAULT_FALLBACK;
+      } else if (leftSel.value !== "SCL" && rightSel.value !== "SCL"){
+        rightSel.value = "SCL";
+      }
+    } else if (trigger === "right"){
+      if (leftSel.value === "SCL" && rightSel.value === "SCL"){
+        leftSel.value = prevRight && prevRight !== "SCL" ? prevRight : DEFAULT_FALLBACK;
+      } else if (leftSel.value !== "SCL" && rightSel.value !== "SCL"){
+        leftSel.value = "SCL";
+      }
+    }
+
+    lastLeft = leftSel.value;
+    lastRight = rightSel.value;
+    render();
+  }
+
+  try {
+    statusEl.textContent = "Ładowanie danych z PDF…";
+    const pdfRecords = await loadRecordsFromPdf();
+    const debugRecords = DEBUG_LOCAL_SAMPLE ? createDebugEntries() : [];
+    allData = dedupeRecords([...debugRecords, ...pdfRecords]);
+
+    countAllEl.textContent = allData.length;
+    topbarEl.style.display = "flex";
+
+    if (allData.length){
+      const suffix = DEBUG_LOCAL_SAMPLE
+        ? ' Dla testu markera &7 wpisz <b>Soul</b>.'
+        : '';
+      statusEl.innerHTML =
+        'Wpisz w polu wyszukiwania, np. <b>dom</b>. Ustaw po lewej <b>Polonica</b>, po prawej <b>Slavonica</b>.' + suffix;
+    } else {
+      statusEl.textContent = "Nie znaleziono rekordów.";
+    }
+  } catch (err){
+    console.error(err);
+    const debugRecords = DEBUG_LOCAL_SAMPLE ? createDebugEntries() : [];
+    allData = dedupeRecords(debugRecords);
+    countAllEl.textContent = allData.length;
+    topbarEl.style.display = "flex";
+
+    if (allData.length){
+      statusEl.innerHTML =
+        'Nie udało się wczytać PDF (CORS / format), ale rekord testowy jest dostępny. Wpisz <b>Soul</b>, aby sprawdzić działanie markera <code>&amp;7</code>.';
+    } else {
+      statusEl.innerHTML =
+        'Nie udało się wczytać PDF (CORS / format), a tryb debug jest wyłączony.';
+    }
+  }
+
+  leftSel.addEventListener("change", () => enforceSlavonica("left"));
+  rightSel.addEventListener("change", () => enforceSlavonica("right"));
+  queryInp.addEventListener("input", debounce(render, 120));
+
+  lastLeft = leftSel.value;
+  lastRight = rightSel.value;
 })();
 </script>
 </body>
