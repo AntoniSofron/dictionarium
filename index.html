@@ -3,689 +3,578 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dictionarium — słownik prasłowiański online</title>
+<title>Dictionarium Sanctae Marthae</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-<script>
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
-</script>
+<!-- SheetJS (XLSX parser) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
   :root{
-    --bg:#0b0f14;
-    --card:#121821;
-    --muted:#9bb0c8;
-    --muted-soft:#9aa6b2;
-    --text:#e7eef8;
-    --accent:#70c0ff;
-    --chip:#1a2330;
-    --chip-b:#263244;
-    --line:#1f2a3a;
-    --btn:#1f3047;
-    --btn-h:#2a3f59;
-    --tbl:#304767;
+    --bg:#0b0f14; --card:#121821; --muted:#9bb0c8; --text:#e7eef8; --accent:#70c0ff;
+    --chip:#1a2330; --chip-b:#263244; --line:#1f2a3a; --pill:#1b2839; --pill-b:#2a3b55;
+    --panel:#111824; --panel-head:#0f1520;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{
-    margin:0;
-    background:var(--bg);
-    color:var(--text);
-    font:15px/1.45 system-ui,Segoe UI,Inter,Roboto,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
-  }
-  header{
-    position:sticky;
-    top:0;
-    z-index:10;
-    backdrop-filter:saturate(1.2) blur(8px);
-    background:linear-gradient(180deg, rgba(11,15,20,.92), rgba(11,15,20,.7) 80%, transparent);
-    border-bottom:1px solid var(--line);
-  }
+  body{ margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui,Segoe UI,Inter,Roboto,Arial,sans-serif; }
+  header{ position:sticky; top:0; z-index:5; backdrop-filter:saturate(1.1) blur(8px);
+    background:linear-gradient(180deg, rgba(11,15,20,.9), rgba(11,15,20,.6) 80%, transparent);
+    border-bottom:1px solid var(--line); }
   .wrap{max-width:1100px; margin:0 auto; padding:14px 16px}
+  .brand{ display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:center; }
+  .logo img{ height:96px; width:auto; display:block; user-select:none; pointer-events:none; }
   h1{margin:0 0 6px; font-size:20px; letter-spacing:.2px}
-  .row{
-    display:grid;
-    gap:10px;
-    grid-template-columns:1fr 1fr 2fr;
-    align-items:center;
-  }
-  .select,.search{
-    background:var(--card);
-    border:1px solid var(--line);
-    color:var(--text);
-    padding:10px 12px;
-    border-radius:12px;
-    outline:none;
-  }
+  .row{ display:grid; gap:10px; grid-template-columns: 1fr 1fr 2fr; align-items:center; }
+  .select, .search{ background:var(--card); border:1px solid var(--line); color:var(--text);
+    padding:10px 12px; border-radius:12px; outline:none; }
   .search{display:flex; align-items:center; gap:8px}
-  .search input{all:unset; width:100%; font-size:15px; line-height:22px}
+  .search input{ all:unset; width:100%; font-size:15px; line-height:22px; }
   .hint{font-size:12px; color:var(--muted); margin-top:6px}
-  main{padding:12px 16px 60px}
+  main{padding:12px 16px 90px}
   .status{color:var(--muted); padding:16px}
-  .cards{display:flex; flex-direction:column; gap:12px}
-  .card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:16px;
-    display:grid;
-    grid-template-columns:minmax(0,1fr) auto;
-    gap:14px;
-    align-items:start;
+  .topbar{ display:flex; gap:8px; align-items:center; justify-content:space-between; margin-top:8px; }
+  .small{ font-size:12px; color:var(--muted) } .count{ font-variant-numeric: tabular-nums; }
+  .cards{display:flex; flex-direction:column; gap:10px}
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px;
+    display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:start; }
+  .head{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .word{ font-size:18px; font-weight:600; word-break:break-word; display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; }
+  .bracket{ color:var(--muted); font-weight:400; }
+  .meta{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{ background:var(--chip); border:1px solid var(--chip-b); padding:4px 8px; border-radius:999px; font-size:12px; color:var(--muted); }
+
+  .btn-col{ display:flex; flex-direction:column; gap:8px; align-items:stretch; min-width:170px; }
+  .pill-btn{ appearance:none; border:1px solid var(--pill-b); background:var(--pill); color:var(--text);
+    padding:9px 14px; border-radius:999px; cursor:pointer; font-weight:700; letter-spacing:.2px;
+    transition:filter .15s ease, transform .06s ease, box-shadow .15s ease; }
+  .pill-btn:hover{ filter:brightness(1.08) } .pill-btn[aria-pressed="true"]{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  .xlat-panel, .morph-panel, .sig-panel{ display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-top:8px; }
+  .xlat-panel.open, .morph-panel.open, .sig-panel.open{ display:block; }
+  .x-head, .m-head, .s-head{ padding:14px 18px; background:linear-gradient(180deg, var(--panel-head), rgba(255,255,255,0.04));
+    border-bottom:1px solid var(--line); border-radius:14px 14px 0 0; font-weight:800; letter-spacing:.2px; font-size:19px; text-transform:lowercase; }
+  .x-body, .m-body, .s-body{ padding:12px 14px; }
+  .xlat-item{ display:grid; grid-template-columns: 160px 1fr; gap:12px; padding:6px 0; align-items:start; }
+  .xlat-item + .xlat-item{ border-top:1px dashed var(--line); }
+  .lab{ font-weight:700; color:var(--accent) }
+
+  /* tabele morfologiczne */
+  .morph-table{
+    display:inline-table; width:max-content; table-layout:auto;
+    border-collapse:separate; border-spacing:0; font-size:15px; margin:0 2px;
   }
-  .head{display:flex; flex-direction:column; gap:8px; min-width:0}
-  .word{font-size:18px; font-weight:700; word-break:break-word}
-  .meta{display:flex; flex-wrap:wrap; gap:6px}
-  .chip{
-    background:var(--chip);
-    border:1px solid var(--chip-b);
-    padding:4px 8px;
-    border-radius:999px;
-    font-size:12px;
-    color:var(--muted);
+  .morph-table th, .morph-table td{
+    border:1px solid #2b3a52; padding:6px 8px; vertical-align:middle; min-height:28px; white-space:nowrap;
   }
-  .actions{display:flex; flex-direction:column; gap:8px; align-items:stretch}
-  .action-btn{
-    min-width:170px;
-    padding:9px 16px;
-    border-radius:999px;
-    border:1px solid #36527b;
-    background:var(--btn);
-    color:var(--text);
-    font-weight:600;
-    cursor:pointer;
-    transition:transform .15s ease, background .15s ease, border-color .15s ease;
-  }
-  .action-btn:hover{background:var(--btn-h); transform:translateY(-1px)}
-  .action-btn[aria-pressed="true"]{outline:2px solid var(--accent); outline-offset:2px}
-  .translations,
-  .infl-box{display:none; grid-column:1 / -1}
-  .translations.open,
-  .infl-box.open{display:block}
-  .translations{
-    border-top:1px dashed var(--line);
-    padding-top:12px;
-    margin-top:2px;
-  }
-  .tl{display:flex; flex-direction:column; gap:8px; font-size:14px}
-  .tl .lab{font-weight:700; color:var(--accent)}
-  .tl .val{white-space:pre-wrap}
-  .infl-box{
-    margin-top:2px;
-    border:1px solid var(--line);
-    border-radius:14px;
-    overflow:hidden;
-    background:linear-gradient(180deg, rgba(15,24,36,.95), rgba(15,24,36,.82));
-  }
-  .infl-head{
-    padding:12px 16px;
-    border-bottom:1px solid var(--line);
-    font-size:16px;
-    font-weight:800;
-    text-transform:lowercase;
-  }
-  .infl-body{padding:12px 16px; overflow:auto}
-  .infl-empty{color:var(--muted); font-size:13px}
-  .infl-table{
-    border-collapse:collapse;
-    min-width:520px;
-    font-family:"Times New Roman", Georgia, serif;
-  }
-  .infl-table th,
-  .infl-table td{
-    border:1px solid var(--tbl);
-    padding:8px 10px;
-    vertical-align:middle;
-  }
-  .infl-table thead th{
-    font-size:18px;
-    font-style:italic;
-    font-weight:500;
-    text-align:center;
-  }
-  .infl-table th.case{
-    font-size:17px;
-    font-style:italic;
-    font-weight:400;
-    text-align:left;
-    white-space:nowrap;
-  }
-  .infl-table td{min-width:96px}
-  .inf-form{color:var(--text)}
-  .muted{color:var(--muted-soft)}
-  .topbar{
-    display:flex;
-    gap:8px;
-    align-items:center;
-    justify-content:space-between;
-    margin-top:8px;
-  }
-  .small{font-size:12px; color:var(--muted)}
-  .count{font-variant-numeric:tabular-nums}
-  @media (max-width:900px){
-    .row{grid-template-columns:1fr 1fr}
-    .search{grid-column:1 / -1}
-    .card{grid-template-columns:1fr}
-    .actions{flex-direction:row; flex-wrap:wrap; justify-content:flex-start}
-    .action-btn{min-width:0}
-  }
+  .morph-table th{ text-align:center; background:#0f1520; color:var(--text); }
+  .morph-table td{ background:#141b26; color:var(--text); }
+  .morph-table .cases{ font-style:italic; color:#ffffff; }
+
+  .sig-text{ white-space:pre-wrap; line-height:1.55; }
+
+  footer{ position:fixed; left:0; right:0; bottom:0; background:linear-gradient(180deg, rgba(11,15,20,0), rgba(11,15,20,.9));
+    border-top:1px solid var(--line); text-align:center; font-style:italic; color:var(--muted); padding:10px 16px; }
+  @media (max-width:900px){ .row{ grid-template-columns: 1fr 1fr } .search{ grid-column: 1 / -1 } .logo img{height:72px} }
 </style>
 </head>
 <body>
 
 <header>
   <div class="wrap">
-    <h1>Dictionarium — słownik prasłowiański</h1>
-    <div class="row">
-      <select id="leftLang" class="select" title="Język po lewej (źródłowy)">
-        <option value="POL">Polonica</option>
-        <option value="CZE">Bohemica</option>
-        <option value="RUS">Russica</option>
-        <option value="SCL">Slavonica</option>
-      </select>
+    <div class="brand">
+      <div class="logo"><img src="image.png" alt="Logo"></div>
+      <div>
+        <h1>Dictionarium Sanctae Marthae</h1>
+        <div class="row">
+          <select id="leftLang" class="select">
+            <option value="SLA">Slavonica</option>
+            <option value="LSA">Lingua Slavonica Antiqua</option>
+            <option value="RUS">Russica</option>
+            <option value="ALB">Albaruthenica</option>
+            <option value="UCR">Ucrainica</option>
+            <option value="POL" selected>Polonica</option>
+            <option value="SSU">Sorabica Superior</option>
+            <option value="SIN">Sorabica Inferior</option>
+            <option value="SLO">Slovaca</option>
+            <option value="BOH">Bohemica</option>
+            <option value="SLV">Slovena</option>
+            <option value="CRO">Croatica</option>
+            <option value="SER">Serbica</option>
+            <option value="MAC">Macedonica</option>
+            <option value="BUL">Bulgarica</option>
+            <option value="JAP">Japonica</option>
+            <option value="COR">Coreana</option>
+          </select>
 
-      <select id="rightLang" class="select" title="Język po prawej (docelowy)">
-        <option value="SCL">Slavonica</option>
-        <option value="POL">Polonica</option>
-        <option value="CZE">Bohemica</option>
-        <option value="RUS">Russica</option>
-      </select>
+          <select id="rightLang" class="select">
+            <option value="SLA" selected>Slavonica</option>
+            <option value="LSA">Lingua Slavonica Antiqua</option>
+            <option value="RUS">Russica</option>
+            <option value="ALB">Albaruthenica</option>
+            <option value="UCR">Ucrainica</option>
+            <option value="POL">Polonica</option>
+            <option value="SSU">Sorabica Superior</option>
+            <option value="SIN">Sorabica Inferior</option>
+            <option value="SLO">Slovaca</option>
+            <option value="BOH">Bohemica</option>
+            <option value="SLV">Slovena</option>
+            <option value="CRO">Croatica</option>
+            <option value="SER">Serbica</option>
+            <option value="MAC">Macedonica</option>
+            <option value="BUL">Bulgarica</option>
+            <option value="JAP">Japonica</option>
+            <option value="COR">Coreana</option>
+          </select>
 
-      <label class="search" title="Szukaj prefiksu w kolumnie źródłowej">
-        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23C15.99 6.01 13.32 3.34 9.99 3.34S4 6.01 4 9.34s2.67 6 5.99 6c1.61 0 3.09-.59 4.23-1.57l.27.28v.79L20 20.33 21.33 19 15.5 14Zm-5.51 0C7.47 14 6 12.53 6 10.84S7.47 7.68 9.99 7.68s3.99 1.47 3.99 3.16S12.52 14 9.99 14Z"/></svg>
-        <input id="query" placeholder="Wpisz początek słowa, np. dom" autocomplete="off" />
-      </label>
+          <label class="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23C15.99 6.01 13.32 3.34 9.99 3.34S4 6.01 4 9.34s2.67 6 5.99 6c1.61 0 3.09-.59 4.23-1.57l.27.28v.79L20 20.33 21.33 19 15.5 14Zm-5.51 0C7.47 14 6 12.53 6 10.84S7.47 7.68 9.99 7.68s3.99 1.47 3.99 3.16S12.52 14 9.99 14Z"/></svg>
+            <input id="query" placeholder="Scribe initium verbi" autocomplete="off" />
+          </label>
+        </div>
+      </div>
     </div>
-    <div class="hint">Wyniki filtrują się po <em>prefiksie</em> w wybranej kolumnie po lewej. Tłumaczenia oraz tabela fleksyjna są ukryte — otwierasz je oddzielnymi przyciskami w karcie wyniku.</div>
+    <div class="hint">Translationes recentiores sub puga “translationes” praesto sunt.</div>
   </div>
 </header>
 
 <main class="wrap">
-  <div id="status" class="status">Ładowanie danych z PDF…</div>
-  <div class="topbar" style="display:none" id="topbar">
-    <div class="small"><span class="count" id="countAll">0</span> rekordów wczytano</div>
-    <div class="small"><span class="count" id="countShown">0</span> pasujących wyników</div>
+  <div id="status" class="status">Ładowanie danych…</div>
+  <div class="topbar" id="topbar" style="display:none">
+    <div class="small">numerus verborum totus: <span class="count" id="countAll">0</span></div>
+    <div class="small">numerus verborum quaesitorum: <span class="count" id="countShown">0</span></div>
   </div>
-  <div id="cards" class="cards"></div>
+  <div class="cards" id="cards"></div>
 </main>
+
+<footer>
+  <div class="wrap">Auctor huius dictionarii Antonius Sofronus est.</div>
+</footer>
 
 <script>
 (async function(){
-  const PDF_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIzVmMRmSAz-AE8rP_lLJfvHNnVRp5kGQFOCkn9lANWzeEkugCT9LO-JFRDhCLwZgvOuJBnV3shtRV/pub?gid=0&single=true&output=pdf";
-  const DEFAULT_FALLBACK = "POL";
+  const XLSX_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQZoAolAWEBzbwXjPzA67tmva1TyOR2AYB-49vqXPo98MXodomWq2dGKGewO_z8-iZIYbr0x6Z5jbPP/pub?output=xlsx";
 
+  const leftSel  = document.getElementById('leftLang');
+  const rightSel = document.getElementById('rightLang');
+  const queryInp = document.getElementById('query');
   const statusEl = document.getElementById('status');
   const cardsEl  = document.getElementById('cards');
   const topbar   = document.getElementById('topbar');
   const countAll = document.getElementById('countAll');
   const countShown = document.getElementById('countShown');
 
-  const leftSel  = document.getElementById('leftLang');
-  const rightSel = document.getElementById('rightLang');
-  const queryInp = document.getElementById('query');
+  const DEFAULT_FALLBACK = "POL";
 
-  const debounce = (fn, d=200)=>{
-    let t;
-    return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), d); };
-  };
+  const cols = ["SLA","PSL","CHANDŽI","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL","JAP","COR"];
 
-  async function loadRecordsFromPdf(){
-    statusEl.textContent = "Ładowanie danych z PDF…";
-    cardsEl.innerHTML = "";
-    topbar.style.display = "none";
-
-    const url = PDF_URL + "&cb=" + Date.now();
-    const loadingTask = pdfjsLib.getDocument({ url, cMapPacked: true, useSystemFonts: true });
-    const pdf = await loadingTask.promise;
-
-    const columnLabels = ["SCL","I","II","III","IV","V","RUS","POL","CZE"];
-    let anchors = null;
-    const records = [];
-
-    for(let p=1; p<=pdf.numPages; p++){
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      const items = content.items.map(it=>{
-        const tx = it.transform[4];
-        const ty = it.transform[5];
-        return {str:(it.str||"").trim(), x:tx, y:ty};
-      }).filter(it=>it.str);
-
-      items.sort((a,b)=> b.y - a.y || a.x - b.x);
-      const rows = [];
-      const tolY = 3.5;
-      for(const it of items){
-        let row = rows.length ? rows[rows.length-1] : null;
-        if(!row || Math.abs(row.y - it.y) > tolY){
-          rows.push({ y:it.y, items:[it] });
-        }else{
-          row.items.push(it);
-        }
-      }
-
-      for(const row of rows){
-        const joined = row.items.map(i=>i.str).join(" ");
-        const hasAll = columnLabels.every(lab => joined.includes(lab));
-        if(hasAll){
-          const found = {};
-          for(const lab of columnLabels){
-            let cand = row.items.find(i => i.str === lab);
-            if(!cand) cand = row.items.find(i => i.str.includes(lab));
-            if(cand) found[lab] = cand.x;
-          }
-          if(Object.keys(found).length >= 7){ anchors = found; }
-          break;
-        }
-      }
-
-      if(!anchors){
-        for(const row of rows){
-          const txt = row.items.map(i=>i.str);
-          const hits = ["RUS","POL","CZE"].filter(x => txt.includes(x)).length;
-          if(hits >= 3){
-            const found = {};
-            for(const lab of columnLabels){
-              const cand = row.items.find(i => i.str === lab);
-              if(cand) found[lab] = cand.x;
-            }
-            if(Object.keys(found).length >= 5){ anchors = found; break; }
-          }
-        }
-      }
-      if(!anchors) continue;
-
-      const fullOrder = ["SCL","I","II","III","IV","V","RUS","POL","CZE"];
-      const present = fullOrder
-        .map(lab => ({ lab, x: anchors[lab] }))
-        .filter(c => Number.isFinite(c.x))
-        .sort((a,b)=> a.x - b.x);
-
-      if(present.length && present.length < fullOrder.length){
-        const minX = present[0].x;
-        const maxX = present[present.length-1].x;
-        const step = (maxX - minX) / (fullOrder.length - 1 || 1);
-        const have = new Set(present.map(c=>c.lab));
-        for(let i=0;i<fullOrder.length;i++){
-          const lab = fullOrder[i];
-          if(!have.has(lab)) present.push({ lab, x: minX + step * i });
-        }
-        present.sort((a,b)=> a.x - b.x);
-      }
-
-      const boundaries = [];
-      for(let i=0;i<present.length-1;i++){
-        boundaries.push((present[i].x + present[i+1].x) / 2);
-      }
-
-      function colByX(x){
-        for(let i=0;i<present.length;i++){
-          const left  = i===0 ? -Infinity : boundaries[i-1];
-          const right = i===present.length-1 ? Infinity : boundaries[i];
-          if(x >= left && x < right) return present[i].lab;
-        }
-        return "SCL";
-      }
-
-      for(const row of rows){
-        const rowText = row.items.map(i=>i.str).join(" ");
-        const isHeader = columnLabels.every(l=> rowText.includes(l));
-        if(isHeader) continue;
-
-        const rec = {SCL:"", I:"", II:"", III:"", IV:"", V:"", RUS:"", POL:"", CZE:""};
-        const buckets = {SCL:[], I:[], II:[], III:[], IV:[], V:[], RUS:[], POL:[], CZE:[]};
-
-        for(const it of row.items){
-          const lab = colByX(it.x);
-          if(lab) buckets[lab].push(it.str);
-        }
-        for(const lab of Object.keys(rec)){
-          rec[lab] = buckets[lab].join(" ").replace(/\s+/g, " ").trim();
-        }
-
-        const nonEmptyCols = Object.values(rec).filter(v=>v).length;
-        if(nonEmptyCols >= 2) records.push(rec);
-      }
-    }
-
-    const key = r => [r.SCL,r.I,r.II,r.III,r.IV,r.V,r.RUS,r.POL,r.CZE].join("¦");
-    const uniq = new Map();
-    for(const r of records){
-      if(!uniq.has(key(r))) uniq.set(key(r), r);
-    }
-    const final = Array.from(uniq.values());
-
-    countAll.textContent = final.length;
-    topbar.style.display = "flex";
-    statusEl.textContent = "";
-    return final;
+  function debounce(fn, d=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); } }
+  function normalize(s){ return (s||"").toLowerCase().trim(); }
+  function prefixMatch(cell,q){
+    if(!cell||!q) return false;
+    return normalize(cell).split(/[,;/|]/).some(p=>p.trim().startsWith(normalize(q)));
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   }
 
-  const data = await loadRecordsFromPdf().catch(err=>{
-    console.error(err);
-    statusEl.innerHTML = "Nie udało się wczytać PDF (CORS / format). Odśwież stronę albo uruchom plik przez http://localhost.";
-    return [];
-  });
+  function isVerbPOS(pos){ return /\b(verbum|vb\.?|v\.?)\b/i.test(pos||""); }
+  function isAdjPOS(pos){ return /\b(adiectiv|adjectiv|adj\.?)\b/i.test(pos||""); }
+  function isNounPOS(pos){ return /\b(nomen|nom\.?|n\.?)\b/i.test(pos||""); }
+  function isPronPOS(pos){ return /\b(pronomen|pron\.?)\b/i.test(pos||""); }
 
-  function normalize(s){ return (s || "").toLowerCase().trim(); }
-
-  function prefixMatch(cell, q){
-    if(!cell || !q) return false;
-    const parts = cell.split(/[,;|/]/g).map(s=>s.trim()).filter(Boolean);
-    if(parts.length === 0) parts.push(cell.trim());
-    const qn = normalize(q);
-    return parts.some(p => normalize(p).startsWith(qn));
+  function aspectOnly(iv){
+    const m=(iv||"").match(/\b(impf\.?|perf\.?)\b/i);
+    if(!m) return "";
+    return m[1].toLowerCase().startsWith('impf')?'impf.':'perf.';
   }
 
-  function posKind(pos){
-    const s = (pos || "").toLowerCase().replace(/\s+/g,' ').trim();
-    if(/\b(verbum|verb|v\.?)\b/.test(s)) return 'verb';
-    if(/\b(adiectiv(?:um|e)?|adjectiv(?:um|e)?|adj\.?)\b/.test(s)) return 'adj';
-    return 'other';
+  function parseV(vStr, len){
+    const parts = String(vStr||"").split(";").map(s=>s.trim());
+    const out = new Array(len).fill("—");
+    for(let i=0;i<Math.min(parts.length,len);i++){ out[i] = parts[i] || "—"; }
+    return out;
   }
 
-  function labelForIV(pos){
-    const kind = posKind(pos);
-    return kind === 'verb' ? 'aspectus' : (kind === 'adj' ? 'gradus comparativus' : 'genus');
-  }
-
-  // Parsowanie V: akceptuje średnik zwykły, pełnoszeroki i warianty, a także łamania linii.
-  function parseVParts(v){
-    if(!v) return [];
-    return String(v)
-      .replace(/[\uFF1B\uFE14\uFE54\u061B]/g, ';')
-      .replace(/\r\n?/g, '\n')
-      .replace(/\n/g, ';')
-      .split(';')
-      .map(s => s.trim());
-  }
-
-  // Mapowanie zgodne z ustaleniem użytkownika:
-  // sg = pierwsze 7 segmentów,
-  // du = [8. segment => nom/acc/voc, 9. => gen/loc, 10. => dat/ins],
-  // pl = [11. => nom/voc, 12-16. => acc,gen,loc,dat,ins].
-  function mapVPartsToTable(parts){
-    const get = i => parts[i] ?? '';
-    return {
-      sg: [get(0), get(1), get(2), get(3), get(4), get(5), get(6)],
-      duNav: get(7),
-      duGl:  get(8),
-      duDi:  get(9),
-      pl: [get(10), get(11), get(12), get(13), get(14), get(15), get(10)]
-    };
-  }
-
-  // Renderuje komórkę tak, aby tokeny zaczynające się od * lub † były szare,
-  // ale sam znak * / † pozostał widoczny.
-  function appendStyledTokens(el, value){
-    el.textContent = '';
-    if(value == null || value === '') return;
-
-    const pieces = String(value)
-      .split(/(\s+|,\s*|\/\s*|\|\s*|\+\s*)/g)
-      .filter(part => part !== '');
-
-    for(const part of pieces){
-      const isSeparator = /^(\s+|,\s*|\/\s*|\|\s*|\+\s*)$/.test(part);
-      if(isSeparator){
-        el.appendChild(document.createTextNode(part));
-        continue;
-      }
-      const span = document.createElement('span');
-      span.textContent = part;
-      if(/^[*†]/.test(part.trimStart())) span.className = 'muted';
-      el.appendChild(span);
-    }
-  }
-
-  function buildInflectionBox(rec){
-    const kind = posKind(rec.I);
-    const title = kind === 'verb' ? 'coniugatio' : 'declinatio';
-    const parts = parseVParts(rec.V);
-    const mapped = mapVPartsToTable(parts);
-    const rowLabels = ['Nominativus','Accusativus','Genetivus','Locativus','Dativus','Instrumentalis','Vocativus'];
-
-    const box = document.createElement('div');
-    box.className = 'infl-box';
-
-    const head = document.createElement('div');
-    head.className = 'infl-head';
-    head.textContent = title;
-    box.appendChild(head);
-
-    const body = document.createElement('div');
-    body.className = 'infl-body';
-
-    if(!parts.some(Boolean)){
-      const empty = document.createElement('div');
-      empty.className = 'infl-empty';
-      empty.textContent = 'Brak danych fleksyjnych w kolumnie V.';
-      body.appendChild(empty);
-      box.appendChild(body);
-      return { box, title };
-    }
-
-    const table = document.createElement('table');
-    table.className = 'infl-table';
-
+  function buildNounLikeTable(vStr){
+    const v = parseV(vStr, 16);
+    const cases = ["Nominativus","Accusativus","Genetivus","Locativus","Dativus","Instrumentalis","Vocativus"];
+    const table = document.createElement('table'); table.className='morph-table';
     const thead = document.createElement('thead');
-    const htr = document.createElement('tr');
-    ['', 'Singularis', 'Dualis', 'Pluralis'].forEach((txt, idx)=>{
-      const th = document.createElement('th');
-      if(idx === 0) th.textContent = '';
-      else th.textContent = txt;
-      htr.appendChild(th);
-    });
-    thead.appendChild(htr);
+    thead.innerHTML = `<tr><th class="cases"> </th><th>Singularis</th><th>Dualis</th><th>Pluralis</th></tr>`;
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
-    for(let i=0; i<7; i++){
+    const S = [0,1,2,3,4,5,6];
+    const Dn = v[7], Dgl = v[8], Ddi = v[9];
+    const P = [10,11,12,13,14,15,10];
+
+    cases.forEach((c, i)=>{
       const tr = document.createElement('tr');
-      const th = document.createElement('th');
-      th.className = 'case';
-      th.scope = 'row';
-      th.textContent = rowLabels[i];
-      tr.appendChild(th);
-
-      const tdSg = document.createElement('td');
-      tdSg.className = 'inf-form';
-      appendStyledTokens(tdSg, mapped.sg[i]);
-      tr.appendChild(tdSg);
-
-      // Dualis ma grupy wspólnych form: nom/acc, gen/loc, dat/ins, a voc = nom.
-      if(i === 0){
-        const tdDu = document.createElement('td');
-        tdDu.className = 'inf-form';
-        tdDu.rowSpan = 2;
-        appendStyledTokens(tdDu, mapped.duNav);
-        tr.appendChild(tdDu);
-      }
-      if(i === 2){
-        const tdDu = document.createElement('td');
-        tdDu.className = 'inf-form';
-        tdDu.rowSpan = 2;
-        appendStyledTokens(tdDu, mapped.duGl);
-        tr.appendChild(tdDu);
-      }
-      if(i === 4){
-        const tdDu = document.createElement('td');
-        tdDu.className = 'inf-form';
-        tdDu.rowSpan = 2;
-        appendStyledTokens(tdDu, mapped.duDi);
-        tr.appendChild(tdDu);
-      }
-      if(i === 6){
-        const tdDu = document.createElement('td');
-        tdDu.className = 'inf-form';
-        appendStyledTokens(tdDu, mapped.duNav);
-        tr.appendChild(tdDu);
-      }
-
-      const tdPl = document.createElement('td');
-      tdPl.className = 'inf-form';
-      appendStyledTokens(tdPl, mapped.pl[i]);
-      tr.appendChild(tdPl);
-
+      tr.appendChild(tdLabel(c));
+      tr.appendChild(td(v[S[i]]));
+      if(i===0){ const t=td(Dn); t.rowSpan=2; tr.appendChild(t); }
+      else if(i===2){ const t=td(Dgl); t.rowSpan=2; tr.appendChild(t); }
+      else if(i===4){ const t=td(Ddi); t.rowSpan=2; tr.appendChild(t); }
+      else if(i===6){ tr.appendChild(td(Dn)); }
+      tr.appendChild(td(v[P[i]]));
       tbody.appendChild(tr);
-    }
+    });
     table.appendChild(tbody);
-    body.appendChild(table);
-    box.appendChild(body);
-    return { box, title };
+    return table;
+
+    function tdLabel(txt){ const x=document.createElement('td'); x.className='cases'; x.textContent=txt; return x; }
+    function td(val){ const x=document.createElement('td'); x.textContent=val && val.length?val:'—'; return x; }
+  }
+
+  function buildAdjTable(vStr){
+    const v = parseV(vStr, 25);
+    const g = i => v[i-1] || '—';
+
+    const table = document.createElement('table'); table.className='morph-table';
+    const tbody = document.createElement('tbody');
+
+    tbody.appendChild(rowHead(['Indefinitum','Adverbium','Comparativus','Superlativus']));
+    { const tr=document.createElement('tr'); tr.append(td(g(1)), td(g(2)), td(g(3)), td(g(4))); tbody.appendChild(tr); }
+
+    tbody.appendChild(sectionRow('Singularis',5));
+    tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Nominativus'));
+      const left=document.createElement('td'); left.colSpan=2; left.textContent=g(5); tr.appendChild(left);
+      tr.append(td(g(10)), td(g(11))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Accusativus'));
+      tr.append(td(g(6)), td(g(5)), td(g(10)), td(g(12))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Genetivus'));
+      const left=document.createElement('td'); left.colSpan=3; left.textContent=g(6); tr.appendChild(left);
+      tr.append(td(g(13))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Locativus'));
+      const left=document.createElement('td'); left.colSpan=3; left.textContent=g(7); tr.appendChild(left);
+      tr.append(td(g(14))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Dativus'));
+      const left=document.createElement('td'); left.colSpan=3; left.textContent=g(8); tr.appendChild(left);
+      tr.append(td(g(14))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Instrumentalis'));
+      const left=document.createElement('td'); left.colSpan=3; left.textContent=g(9); tr.appendChild(left);
+      tr.append(td(g(15))); tbody.appendChild(tr); }
+
+    tbody.appendChild(sectionRow('Dualis',5));
+    tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Nom., Acc.'));
+      const a=document.createElement('td'); a.colSpan=2; a.textContent=g(16); tr.appendChild(a);
+      const b=document.createElement('td'); b.colSpan=2; b.textContent=g(19); tr.appendChild(b); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Gen., Loc.'));
+      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(17); tr.appendChild(one); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Dat., Instr.'));
+      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(18); tr.appendChild(one); tbody.appendChild(tr); }
+
+    tbody.appendChild(sectionRow('Pluralis',5));
+    tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Nominativus'));
+      tr.append(td(g(20)), td(g(21)), td(g(25)), td(g(21))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Accusativus'));
+      const left=document.createElement('td'); left.colSpan=2; left.textContent=g(21); tr.appendChild(left);
+      tr.append(td(g(25)), td(g(21))); tbody.appendChild(tr); }
+
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Genetivus'));
+      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(22); tr.appendChild(one); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Locativus'));
+      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(22); tr.appendChild(one); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Dativus'));
+      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(23); tr.appendChild(one); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Instrumentalis'));
+      const one=document.createElement('td'); one.colSpan=4; one.textContent=g(24); tr.appendChild(one); tbody.appendChild(tr); }
+
+    table.appendChild(tbody);
+    return table;
+
+    function tdLabel(txt){ const x=document.createElement('td'); x.className='cases'; x.textContent=txt; return x; }
+    function td(val){ const x=document.createElement('td'); x.textContent=val && val.length?val:'—'; return x; }
+    function sectionRow(t, span){ const tr=document.createElement('tr'); const th=document.createElement('th'); th.textContent=t; th.colSpan=span; tr.appendChild(th); return tr; }
+    function rowHead(labels, firstIsCases=false){ const tr=document.createElement('tr'); labels.forEach((lab,i)=>{ const th=document.createElement('th'); th.textContent = firstIsCases&&i===0?' ':lab; if(firstIsCases&&i===0) th.className='cases'; tr.appendChild(th); }); return tr; }
+  }
+
+  function buildVerbTable(aspectStr, vStr){
+    const isImpf = /\bimpf\.?\b/i.test(aspectStr||"");
+    const base = parseV(vStr, 30);
+    const v = isImpf ? base : ["", ...base];
+
+    const table = document.createElement('table'); table.className='morph-table';
+    const thead = document.createElement('thead');
+    const topCols = isImpf ? ['Incipere','Infinitivus','Supinum','Nomen verbi'] : ['', 'Infinitivus','Supinum','Nomen verbi'];
+    thead.appendChild(rowFrom(topCols, 'th'));
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    const slots=[];
+
+    { const tr = document.createElement('tr');
+      const t0=document.createElement('td'), t1=document.createElement('td'),
+            t2=document.createElement('td'), t3=document.createElement('td');
+      tr.append(t0,t1,t2,t3); tbody.appendChild(tr);
+      slots.push(t0,t1,t2,t3); }
+
+    tbody.appendChild(sectionHeaderRow('Participia', 3));
+    { const tr=document.createElement('tr');
+      const thEmpty=document.createElement('th'); thEmpty.className='cases'; thEmpty.textContent=' '; tr.appendChild(thEmpty);
+      const th1=document.createElement('th'); th1.textContent='Praeteritum'; tr.appendChild(th1);
+      const th2=document.createElement('th'); th2.textContent=isImpf?'Praesens':'Futurum'; tr.appendChild(th2);
+      tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Perfectivum')); const t=document.createElement('td'); t.colSpan=2; tr.appendChild(t); tbody.appendChild(tr); slots.push(t); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Activum')); const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr); slots.push(a,b); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Passivum')); const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr); slots.push(a,b); }
+
+    tbody.appendChild(sectionHeaderRow('Praesens', 4));
+    tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
+    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
+
+    const tenseBlock = isImpf ? 'Imperfectum' : 'Aoristus';
+    tbody.appendChild(sectionHeaderRow(tenseBlock, 4));
+    tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
+    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
+
+    tbody.appendChild(sectionHeaderRow('Imperativus', 4));
+    tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
+    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
+
+    table.appendChild(tbody);
+    slots.forEach((cell, i)=>{ cell.textContent = v[i] || (i===0 ? "" : "—"); });
+    return table;
+
+    function sectionHeaderRow(title, span){ const tr=document.createElement('tr'); const th=document.createElement('th'); th.textContent=title; th.colSpan=span; tr.appendChild(th); return tr; }
+    function rowFrom(labels, tag='td', italicFirst=false){ const tr=document.createElement('tr'); labels.forEach((lab,i)=>{ const el=document.createElement(tag); if(italicFirst && i===0){ el.className='cases'; el.textContent=' '; } else el.textContent=lab; tr.appendChild(el); }); return tr; }
+    function td(colSpan=1){ const x=document.createElement('td'); if(colSpan>1) x.colSpan=colSpan; return x; }
+    function tdLab(txt){ const x=document.createElement('td'); x.textContent=txt; x.className='cases'; return x; }
+  }
+
+  async function loadXLSX(){
+    statusEl.textContent = "Ładowanie danych z XLSX…";
+    const buf = await fetch(XLSX_URL, {cache: "no-store"}).then(r=>r.arrayBuffer());
+    const wb  = XLSX.read(new Uint8Array(buf), { type: "array" });
+    const ws  = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval:"", raw:true });
+
+    const normKey = k => (k||"").toString().trim().toUpperCase();
+
+    const out=[];
+    for(const r of rows){
+      const rec = {};
+      for(const k of Object.keys(r)){ rec[normKey(k)] = (r[k] ?? "").toString().trim(); }
+      const row = {};
+      for(const c of cols) row[c] = rec[c] || "";
+      if(cols.some(k=>row[k])) out.push(row);
+    }
+
+    countAll.textContent = out.length;
+    topbar.style.display = "flex";
+    statusEl.textContent = "";
+    return out;
+  }
+
+  const data = await loadXLSX().catch(e=>{ console.error(e); statusEl.textContent="Nie udało się wczytać XLSX."; return []; });
+
+  let lastLeft = leftSel.value, lastRight = rightSel.value;
+  function enforceSlavonica(trigger){
+    const prevLeft = lastLeft, prevRight = lastRight;
+    let L = leftSel.value, R = rightSel.value;
+
+    if(trigger === 'left'){
+      if(R === 'SLA' && L === 'SLA'){
+        rightSel.value = prevLeft && prevLeft !== 'SLA' ? prevLeft : DEFAULT_FALLBACK;
+      } else if(L !== 'SLA' && R !== 'SLA'){
+        rightSel.value = 'SLA';
+      }
+    } else {
+      if(L === 'SLA' && R === 'SLA'){
+        leftSel.value = prevRight && prevRight !== 'SLA' ? prevRight : DEFAULT_FALLBACK;
+      } else if(L !== 'SLA' && R !== 'SLA'){
+        leftSel.value = 'SLA';
+      }
+    }
+
+    lastLeft = leftSel.value; lastRight = rightSel.value;
+    closePanels(); render();
+  }
+
+  function closePanels(){
+    document.querySelectorAll('.xlat-panel.open, .morph-panel.open, .sig-panel.open').forEach(p=>p.classList.remove('open'));
+    document.querySelectorAll('.pill-btn[aria-pressed="true"]').forEach(b=>b.setAttribute('aria-pressed','false'));
   }
 
   function render(){
-    const left = leftSel.value;
-    const right = rightSel.value;
-    const q = queryInp.value.trim();
-
+    const L = leftSel.value, R = rightSel.value, q = queryInp.value.trim();
     let rows = data;
-    if(q) rows = rows.filter(r => prefixMatch(r[left], q));
 
-    cardsEl.innerHTML = '';
+    if(q) rows = rows.filter(r => prefixMatch(r[L], q));
+
+    cardsEl.innerHTML = "";
     countShown.textContent = rows.length;
 
     if(!q){
-      if(data.length){
-        statusEl.innerHTML = 'Wpisz w polu wyszukiwania, np. <b>dom</b>. Ustaw po lewej <b>Polonica</b>, po prawej <b>Slavonica</b>.';
-      }
+      statusEl.textContent = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias.";
       return;
     }
-    statusEl.textContent = '';
+    statusEl.textContent = "";
 
-    rows = rows.slice().sort((a,b)=> (a[right] || '').localeCompare(b[right] || ''));
+    rows.forEach(r=>{
+      const card = document.createElement('div'); card.className='card';
+      const head = document.createElement('div'); head.className='head';
 
-    for(const r of rows){
-      const card = document.createElement('div');
-      card.className = 'card';
+      const word = document.createElement('div'); word.className='word';
+      const lemma = (r[R]||"(brak)").trim();
+      word.append(document.createTextNode(lemma));
 
-      const head = document.createElement('div');
-      head.className = 'head';
+      if(r["0"]){
+        const br=document.createElement('span');
+        br.className='bracket';
+        br.textContent=`[${r["0"]}]`;
+        word.append(br);
+      }
+      if(r["CHANDŽI"]){
+        const cz=document.createElement('span');
+        cz.className='bracket';
+        cz.textContent = `「${r["CHANDŽI"]}」`;
+        word.append(cz);
+      }
 
-      const word = document.createElement('div');
-      word.className = 'word';
-      word.textContent = (r[right] || '(brak)').trim();
       head.appendChild(word);
 
-      const meta = document.createElement('div');
-      meta.className = 'meta';
+      const meta = document.createElement('div'); meta.className='meta';
+      const pos = (r.I||"");
       const chips = [
-        { lab:'pars orationis',        val:r.I,  raw:false },
-        { lab:'paradigma accentualia', val:r.II, raw:false },
-        { lab:'exemplum',              val:r.III,raw:false },
-        { lab:labelForIV(r.I),         val:r.IV, raw:false },
-        { lab:'',                      val:r.V,  raw:true  }
+        ["pars orationis", r.I],
+        ["paradigma accentualia", r.II],
+        ["exemplum", r.III],
+        [ isVerbPOS(pos) ? "aspectus" : (isAdjPOS(pos) ? "gradus comparativus" : "genus"), isVerbPOS(pos) ? aspectOnly(r.IV) : r.IV ]
       ];
-      for(const it of chips){
-        if(!it.val) continue;
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = it.raw ? it.val : `${it.lab}: ${it.val}`;
-        meta.appendChild(chip);
-      }
+      chips.forEach(([lab,val])=>{
+        if(!val) return;
+        const s=document.createElement('span'); s.className='chip'; s.textContent = `${lab}: ${val}`;
+        meta.appendChild(s);
+      });
       head.appendChild(meta);
 
-      const actions = document.createElement('div');
-      actions.className = 'actions';
+      const btnCol=document.createElement('div'); btnCol.className='btn-col';
 
-      const btnTrans = document.createElement('button');
-      btnTrans.className = 'action-btn';
-      btnTrans.type = 'button';
-      btnTrans.textContent = 'translationes';
-      btnTrans.setAttribute('aria-pressed', 'false');
-      btnTrans.title = 'Pokaż lub ukryj tłumaczenia';
+      const bT=document.createElement('button');
+      bT.className='pill-btn'; bT.textContent='translationes';
+      bT.setAttribute('aria-pressed','false');
+      btnCol.appendChild(bT);
 
-      const kind = posKind(r.I);
-      const inflLabel = kind === 'verb' ? 'coniugatio' : 'declinatio';
-      const btnInfl = document.createElement('button');
-      btnInfl.className = 'action-btn';
-      btnInfl.type = 'button';
-      btnInfl.textContent = inflLabel;
-      btnInfl.setAttribute('aria-pressed', 'false');
-      btnInfl.title = 'Pokaż lub ukryj tabelę fleksyjną';
+      const bS=document.createElement('button');
+      bS.className='pill-btn'; bS.textContent='significatio';
+      bS.setAttribute('aria-pressed','false');
+      btnCol.appendChild(bS);
 
-      actions.appendChild(btnTrans);
-      actions.appendChild(btnInfl);
+      const allowMorph = isNounPOS(pos) || isPronPOS(pos) || isAdjPOS(pos) || isVerbPOS(pos);
+      let bM=null, mPanel=null;
+      if(allowMorph){
+        bM=document.createElement('button');
+        bM.className='pill-btn';
+        bM.textContent = isVerbPOS(pos) ? 'coniugatio' : 'declinatio';
+        bM.setAttribute('aria-pressed','false');
+        btnCol.appendChild(bM);
 
-      const trans = document.createElement('div');
-      trans.className = 'translations';
-      const tl = document.createElement('div');
-      tl.className = 'tl';
-      [
-        ['Polonica', r.POL],
-        ['Bohemica', r.CZE],
-        ['Russica',  r.RUS]
-      ].forEach(([lab, val])=>{
-        const wrap = document.createElement('div');
-        const L = document.createElement('div');
-        L.className = 'lab';
-        L.textContent = lab;
-        const V = document.createElement('div');
-        V.className = 'val';
-        V.textContent = val || '—';
-        wrap.appendChild(L);
-        wrap.appendChild(V);
-        tl.appendChild(wrap);
-      });
-      trans.appendChild(tl);
+        mPanel=document.createElement('div');
+        mPanel.className='morph-panel';
+        const mHead=document.createElement('div'); mHead.className='m-head';
+        mHead.textContent = isVerbPOS(pos) ? 'coniugatio' : 'declinatio';
+        const mBody=document.createElement('div'); mBody.className='m-body';
 
-      const infl = buildInflectionBox(r);
+        const table = isVerbPOS(pos) ? buildVerbTable(aspectOnly(r.IV), r.V)
+                                     : (isAdjPOS(pos) ? buildAdjTable(r.V) : buildNounLikeTable(r.V));
 
-      btnTrans.addEventListener('click', ()=>{
-        const open = trans.classList.toggle('open');
-        btnTrans.setAttribute('aria-pressed', open ? 'true' : 'false');
-      });
-
-      btnInfl.addEventListener('click', ()=>{
-        const open = infl.box.classList.toggle('open');
-        btnInfl.setAttribute('aria-pressed', open ? 'true' : 'false');
-      });
+        mBody.appendChild(table);
+        mPanel.appendChild(mHead); mPanel.appendChild(mBody);
+      }
 
       card.appendChild(head);
-      card.appendChild(actions);
-      card.appendChild(trans);
-      card.appendChild(infl.box);
+      card.appendChild(btnCol);
       cardsEl.appendChild(card);
-    }
+
+      const x = document.createElement('div'); x.className='xlat-panel';
+      x.innerHTML = `
+        <div class="x-head">translationes</div>
+        <div class="x-body">
+          ${langRow('Slavonica', r.SLA)}
+          ${langRow('Protoslavica', r.PSL)}
+          ${langRow('Lingua Slavonica Antiqua', r.LSA)}
+          ${langRow('Russica', r.RUS)}
+          ${langRow('Albaruthenica', r.ALB)}
+          ${langRow('Ucrainica', r.UCR)}
+          ${langRow('Polonica', r.POL)}
+          ${langRow('Sorabica Superior', r.SSU)}
+          ${langRow('Sorabica Inferior', r.SIN)}
+          ${langRow('Slovaca', r.SLO)}
+          ${langRow('Bohemica', r.BOH)}
+          ${langRow('Slovena', r.SLV)}
+          ${langRow('Croatica', r.CRO)}
+          ${langRow('Serbica', r.SER)}
+          ${langRow('Macedonica', r.MAC)}
+          ${langRow('Bulgarica', r.BUL)}
+          ${langRow('Japonica', r.JAP)}
+          ${langRow('Coreana', r.COR)}
+        </div>`;
+      cardsEl.appendChild(x);
+
+      const sP = document.createElement('div'); sP.className='sig-panel';
+      sP.innerHTML = `
+        <div class="s-head">significatio</div>
+        <div class="s-body"><div class="sig-text">${escapeHtml((r.VI||"—").trim() || "—")}</div></div>
+      `;
+      cardsEl.appendChild(sP);
+
+      if(mPanel) cardsEl.appendChild(mPanel);
+
+      bT.addEventListener('click', ()=>{
+        const open = !x.classList.contains('open');
+        closePanels();
+        if(open){
+          x.classList.add('open');
+          bT.setAttribute('aria-pressed','true');
+          x.scrollIntoView({behavior:'smooth', block:'nearest'});
+        }
+      });
+
+      bS.addEventListener('click', ()=>{
+        const open = !sP.classList.contains('open');
+        closePanels();
+        if(open){
+          sP.classList.add('open');
+          bS.setAttribute('aria-pressed','true');
+          sP.scrollIntoView({behavior:'smooth', block:'nearest'});
+        }
+      });
+
+      if(bM){
+        bM.addEventListener('click', ()=>{
+          const open = !mPanel.classList.contains('open');
+          closePanels();
+          if(open){
+            mPanel.classList.add('open');
+            bM.setAttribute('aria-pressed','true');
+            mPanel.scrollIntoView({behavior:'smooth', block:'nearest'});
+          }
+        });
+      }
+
+      function langRow(name, val){
+        const v = (val && String(val).trim().length) ? String(val).trim() : "—";
+        return `<div class="xlat-item"><div class="lab">${name}</div><div class="val">${escapeHtml(v)}</div></div>`;
+      }
+    });
   }
 
-  let lastLeft = leftSel.value;
-  let lastRight = rightSel.value;
+  leftSel.addEventListener('change', ()=>enforceSlavonica('left'));
+  rightSel.addEventListener('change', ()=>enforceSlavonica('right'));
+  queryInp.addEventListener('input', debounce(()=>{ closePanels(); render(); },120));
 
-  function enforceSlavonica(trigger){
-    const prevLeft = lastLeft;
-    const prevRight = lastRight;
-
-    if(trigger === 'left'){
-      if(leftSel.value === 'SCL' && rightSel.value === 'SCL'){
-        rightSel.value = prevLeft && prevLeft !== 'SCL' ? prevLeft : DEFAULT_FALLBACK;
-      }else if(leftSel.value !== 'SCL' && rightSel.value !== 'SCL'){
-        rightSel.value = 'SCL';
-      }
-    }else if(trigger === 'right'){
-      if(leftSel.value === 'SCL' && rightSel.value === 'SCL'){
-        leftSel.value = prevRight && prevRight !== 'SCL' ? prevRight : DEFAULT_FALLBACK;
-      }else if(leftSel.value !== 'SCL' && rightSel.value !== 'SCL'){
-        leftSel.value = 'SCL';
-      }
-    }
-
-    lastLeft = leftSel.value;
-    lastRight = rightSel.value;
-    render();
-  }
-
-  leftSel.addEventListener('change', ()=> enforceSlavonica('left'));
-  rightSel.addEventListener('change', ()=> enforceSlavonica('right'));
-  queryInp.addEventListener('input', debounce(render, 120));
-
-  lastLeft = leftSel.value;
-  lastRight = rightSel.value;
   if(data.length){
-    statusEl.innerHTML = 'Wpisz w polu wyszukiwania, np. <b>dom</b>. Ustaw po lewej <b>Polonica</b>, po prawej <b>Slavonica</b>.';
+    statusEl.textContent = "Eventus scribentur in lingua, quae a dextra parte selecta erit. Intra in campo quaestionis verbum, ut quaerere incipias.";
   }
 })();
 </script>
