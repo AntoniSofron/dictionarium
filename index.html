@@ -16,17 +16,15 @@
     --bg:#0b0f14;
     --card:#121821;
     --muted:#9bb0c8;
+    --muted-soft:#9aa6b2;
     --text:#e7eef8;
     --accent:#70c0ff;
-    --line:#1f2a3a;
     --chip:#1a2330;
     --chip-b:#263244;
-    --btn:#1a2740;
-    --btn-b:#2a476d;
-    --btn-h:#243757;
-    --transcription:#95a5b8;
-    --glued:var(--transcription);
-    --table-b:#5678b9;
+    --line:#1f2a3a;
+    --btn:#1f3047;
+    --btn-h:#2a3f59;
+    --tbl:#304767;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -43,10 +41,10 @@
     top:0;
     z-index:10;
     backdrop-filter:saturate(1.2) blur(8px);
-    background:linear-gradient(180deg, rgba(11,15,20,.94), rgba(11,15,20,.68) 80%, transparent);
+    background:linear-gradient(180deg, rgba(11,15,20,.92), rgba(11,15,20,.7) 80%, transparent);
     border-bottom:1px solid var(--line);
   }
-  .wrap{max-width:1120px; margin:0 auto; padding:14px 16px}
+  .wrap{max-width:1100px; margin:0 auto; padding:14px 16px}
   h1{margin:0 0 6px; font-size:20px; letter-spacing:.2px}
   .row{
     display:grid;
@@ -67,6 +65,97 @@
   .hint{font-size:12px; color:var(--muted); margin-top:6px}
   main{padding:12px 16px 60px}
   .status{color:var(--muted); padding:16px}
+  .cards{display:flex; flex-direction:column; gap:12px}
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:16px;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:14px;
+    align-items:start;
+  }
+  .head{display:flex; flex-direction:column; gap:8px; min-width:0}
+  .word{font-size:18px; font-weight:700; word-break:break-word}
+  .meta{display:flex; flex-wrap:wrap; gap:6px}
+  .chip{
+    background:var(--chip);
+    border:1px solid var(--chip-b);
+    padding:4px 8px;
+    border-radius:999px;
+    font-size:12px;
+    color:var(--muted);
+  }
+  .actions{display:flex; flex-direction:column; gap:8px; align-items:stretch}
+  .action-btn{
+    min-width:170px;
+    padding:9px 16px;
+    border-radius:999px;
+    border:1px solid #36527b;
+    background:var(--btn);
+    color:var(--text);
+    font-weight:600;
+    cursor:pointer;
+    transition:transform .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .action-btn:hover{background:var(--btn-h); transform:translateY(-1px)}
+  .action-btn[aria-pressed="true"]{outline:2px solid var(--accent); outline-offset:2px}
+  .translations,
+  .infl-box{display:none; grid-column:1 / -1}
+  .translations.open,
+  .infl-box.open{display:block}
+  .translations{
+    border-top:1px dashed var(--line);
+    padding-top:12px;
+    margin-top:2px;
+  }
+  .tl{display:flex; flex-direction:column; gap:8px; font-size:14px}
+  .tl .lab{font-weight:700; color:var(--accent)}
+  .tl .val{white-space:pre-wrap}
+  .infl-box{
+    margin-top:2px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+    background:linear-gradient(180deg, rgba(15,24,36,.95), rgba(15,24,36,.82));
+  }
+  .infl-head{
+    padding:12px 16px;
+    border-bottom:1px solid var(--line);
+    font-size:16px;
+    font-weight:800;
+    text-transform:lowercase;
+  }
+  .infl-body{padding:12px 16px; overflow:auto}
+  .infl-empty{color:var(--muted); font-size:13px}
+  .infl-table{
+    border-collapse:collapse;
+    min-width:520px;
+    font-family:"Times New Roman", Georgia, serif;
+  }
+  .infl-table th,
+  .infl-table td{
+    border:1px solid var(--tbl);
+    padding:8px 10px;
+    vertical-align:middle;
+  }
+  .infl-table thead th{
+    font-size:18px;
+    font-style:italic;
+    font-weight:500;
+    text-align:center;
+  }
+  .infl-table th.case{
+    font-size:17px;
+    font-style:italic;
+    font-weight:400;
+    text-align:left;
+    white-space:nowrap;
+  }
+  .infl-table td{min-width:96px}
+  .inf-form{color:var(--text)}
+  .muted{color:var(--muted-soft)}
   .topbar{
     display:flex;
     gap:8px;
@@ -76,135 +165,12 @@
   }
   .small{font-size:12px; color:var(--muted)}
   .count{font-variant-numeric:tabular-nums}
-  .cards{display:flex; flex-direction:column; gap:12px}
-  .card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:14px;
-    display:grid;
-    grid-template-columns:1fr auto;
-    gap:12px;
-    align-items:start;
-  }
-  .head{display:flex; flex-direction:column; gap:8px; min-width:0}
-  .word{font-size:20px; font-weight:700; word-break:break-word}
-  .subword{font-size:13px; color:var(--muted); word-break:break-word}
-  .meta{display:flex; flex-wrap:wrap; gap:8px}
-  .chip{
-    background:var(--chip);
-    border:1px solid var(--chip-b);
-    padding:5px 9px;
-    border-radius:999px;
-    font-size:12px;
-    color:var(--text);
-    max-width:100%;
-  }
-  .raw-chip{
-    border-radius:14px;
-    white-space:normal;
-    line-height:1.4;
-    color:var(--text);
-  }
-  .glued{color:var(--glued)}
-  .actions{
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    align-items:stretch;
-    min-width:148px;
-  }
-  .pill-btn{
-    appearance:none;
-    border:1px solid var(--btn-b);
-    background:var(--btn);
-    color:var(--text);
-    padding:9px 14px;
-    border-radius:999px;
-    font-weight:600;
-    letter-spacing:.2px;
-    cursor:pointer;
-    transition:transform .15s ease, background .15s ease, border-color .15s ease;
-    min-height:40px;
-  }
-  .pill-btn:hover{background:var(--btn-h); transform:translateY(-1px)}
-  .pill-btn[aria-pressed="true"]{outline:2px solid var(--accent); outline-offset:2px}
-  .pill-btn:disabled{
-    cursor:not-allowed;
-    opacity:.45;
-    transform:none;
-  }
-  .drawer{
-    display:none;
-    grid-column:1 / -1;
-    margin-top:2px;
-    border-top:1px dashed var(--line);
-    padding-top:12px;
-  }
-  .drawer.open{display:block}
-  .translations-grid{
-    display:grid;
-    gap:10px;
-    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
-  }
-  .translation-block{display:flex; flex-direction:column; gap:4px}
-  .translation-block .lab{font-weight:700; color:var(--accent)}
-  .translation-block .val{white-space:pre-wrap; word-break:break-word}
-  .morph-wrap{overflow-x:auto}
-  .morph-table{
-    width:min(100%, 960px);
-    border-collapse:collapse;
-    border:2px solid var(--table-b);
-    background:rgba(255,255,255,.02);
-    min-width:720px;
-  }
-  .morph-table th,
-  .morph-table td{
-    border:1px solid var(--table-b);
-    padding:8px 10px;
-    vertical-align:top;
-  }
-  .morph-table thead th{
-    font-family:"Times New Roman", Georgia, serif;
-    font-style:italic;
-    font-weight:400;
-    font-size:1.15rem;
-    text-align:center;
-  }
-  .morph-table tbody th{
-    width:22%;
-    font-family:"Times New Roman", Georgia, serif;
-    font-style:italic;
-    font-weight:400;
-    text-align:left;
-    font-size:1rem;
-  }
-  .morph-table td{
-    width:26%;
-    font-family:"Times New Roman", Georgia, serif;
-    font-size:1.05rem;
-    color:var(--text);
-  }
-  .drawer-note{
-    color:var(--muted);
-    font-size:12px;
-    margin-top:8px;
-  }
-  code, pre{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
-  .snippet{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:12px;
-    padding:10px 12px;
-    overflow:auto;
-  }
   @media (max-width:900px){
     .row{grid-template-columns:1fr 1fr}
     .search{grid-column:1 / -1}
     .card{grid-template-columns:1fr}
-    .actions{min-width:0; flex-direction:row; flex-wrap:wrap}
-    .pill-btn{flex:1 1 180px}
-    .morph-table{min-width:640px}
+    .actions{flex-direction:row; flex-wrap:wrap; justify-content:flex-start}
+    .action-btn{min-width:0}
   }
 </style>
 </head>
@@ -233,15 +199,15 @@
         <input id="query" placeholder="Wpisz początek słowa, np. dom" autocomplete="off" />
       </label>
     </div>
-    <div class="hint">Wyniki filtrują się po <em>prefiksie</em> w wybranej kolumnie po lewej. Jedna strona zawsze pozostaje ustawiona jako <strong>Slavonica</strong>. W karcie hasła znajdziesz przyciski <strong>translationes</strong> i <strong>declinatio</strong>/<strong>coniugatio</strong>.</div>
+    <div class="hint">Wyniki filtrują się po <em>prefiksie</em> w wybranej kolumnie po lewej. Tłumaczenia oraz tabela fleksyjna są ukryte — otwierasz je oddzielnymi przyciskami w karcie wyniku.</div>
   </div>
 </header>
 
 <main class="wrap">
   <div id="status" class="status">Ładowanie danych z PDF…</div>
-  <div id="topbar" class="topbar" style="display:none">
-    <div class="small"><span id="countAll" class="count">0</span> rekordów wczytano</div>
-    <div class="small"><span id="countShown" class="count">0</span> pasujących wyników</div>
+  <div class="topbar" style="display:none" id="topbar">
+    <div class="small"><span class="count" id="countAll">0</span> rekordów wczytano</div>
+    <div class="small"><span class="count" id="countShown">0</span> pasujących wyników</div>
   </div>
   <div id="cards" class="cards"></div>
 </main>
@@ -250,268 +216,64 @@
 (async function(){
   const PDF_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIzVmMRmSAz-AE8rP_lLJfvHNnVRp5kGQFOCkn9lANWzeEkugCT9LO-JFRDhCLwZgvOuJBnV3shtRV/pub?gid=0&single=true&output=pdf";
   const DEFAULT_FALLBACK = "POL";
-  const ROW_LABELS = [
-    "Nominativus",
-    "Accusativus",
-    "Genetivus",
-    "Locativus",
-    "Dativus",
-    "Instrumentalis",
-    "Vocativus"
-  ];
-  const COL_LABELS = ["Singularis", "Dualis", "Pluralis"];
-  const TOKEN_SPLIT_RE = /(\s+|[;,.:!?\/()[\]{}"„”«»‹›'‘’…]+)/g;
-  const TOKEN_DELIM_RE = /^(\s+|[;,.:!?\/()[\]{}"„”«»‹›'‘’…])+$/;
 
   const statusEl = document.getElementById('status');
-  const cardsEl = document.getElementById('cards');
-  const topbar = document.getElementById('topbar');
+  const cardsEl  = document.getElementById('cards');
+  const topbar   = document.getElementById('topbar');
   const countAll = document.getElementById('countAll');
   const countShown = document.getElementById('countShown');
 
-  const leftSel = document.getElementById('leftLang');
+  const leftSel  = document.getElementById('leftLang');
   const rightSel = document.getElementById('rightLang');
   const queryInp = document.getElementById('query');
 
-  const debounce = (fn, d=180) => {
+  const debounce = (fn, d=200)=>{
     let t;
-    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), d); };
+    return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), d); };
   };
 
-  function normalize(s){
-    return (s || "").toLowerCase().trim();
-  }
-
-  function prefixMatch(cell, q){
-    if(!cell || !q) return false;
-    const parts = String(cell).split(/[,;|/]/g).map(s => s.trim()).filter(Boolean);
-    const bucket = parts.length ? parts : [String(cell).trim()];
-    const qn = normalize(q);
-    return bucket.some(p => normalize(p).startsWith(qn));
-  }
-
-  // Usuwa poprzednią treść kontenera przed bezpiecznym wyrenderowaniem tokenów.
-  function clearNode(node){
-    while(node.firstChild) node.removeChild(node.firstChild);
-  }
-
-  // Dzieli tekst na tokeny i delimitery, zachowując separatory (spacje, przecinki, nawiasy itd.).
-  // Dzięki temu można pokolorować tylko konkretne tokeny, a nie cały łańcuch.
-  function tokenizeMarkedText(source){
-    return String(source ?? "").split(TOKEN_SPLIT_RE).filter(part => part !== "");
-  }
-
-  // Token traktujemy jako "glued", jeśli po trim() zaczyna się od * albo †.
-  function isGluedToken(token){
-    return /^[*†]/.test(String(token || "").trim());
-  }
-
-  // Bezpiecznie renderuje tekst: buduje textNode/span zamiast używać innerHTML,
-  // więc znaki HTML-unsafe pozostają zwykłym tekstem.
-  function appendMarkedText(node, source){
-    clearNode(node);
-    const parts = tokenizeMarkedText(source);
-    if(!parts.length) return;
-
-    for(const part of parts){
-      if(TOKEN_DELIM_RE.test(part)){
-        node.appendChild(document.createTextNode(part));
-        continue;
-      }
-      if(isGluedToken(part)){
-        const span = document.createElement('span');
-        span.className = 'glued';
-        span.textContent = part;
-        node.appendChild(span);
-      }else{
-        node.appendChild(document.createTextNode(part));
-      }
-    }
-  }
-
-  // Zachowujemy oryginalną zasadę: kolumna V rozdzielana wyłącznie średnikami.
-  // Nie filtrujemy pustych segmentów, bo pozycja w układzie tabeli ma znaczenie.
-  function splitVSegments(vRaw){
-    return String(vRaw ?? "").split(';').map(s => s.trim());
-  }
-
-  // Specjalny układ dla tabeli 3×7, zgodny z poprzednią specyfikacją użytkownika:
-  // 0..6  -> Singularis 1..7
-  // 7     -> Dualis 1,2,7
-  // 8     -> Dualis 3,4
-  // 9     -> Dualis 5,6
-  // 10    -> Pluralis 1,7
-  // 11..15-> Pluralis 2..6
-  function buildVMatrix(vRaw){
-    const p = splitVSegments(vRaw);
-    return [
-      [p[0]  || "", p[7]  || "", p[10] || ""],
-      [p[1]  || "", p[7]  || "", p[11] || ""],
-      [p[2]  || "", p[8]  || "", p[12] || ""],
-      [p[3]  || "", p[8]  || "", p[13] || ""],
-      [p[4]  || "", p[9]  || "", p[14] || ""],
-      [p[5]  || "", p[9]  || "", p[15] || ""],
-      [p[6]  || "", p[7]  || "", p[10] || ""]
-    ];
-  }
-
-  function hasMorphData(vRaw){
-    return splitVSegments(vRaw).some(Boolean);
-  }
-
-  function isVerbPos(posRaw){
-    const posNorm = normalize(posRaw).replace(/\s+/g, ' ');
-    return /\b(verbum|verb|v\.?)\b/.test(posNorm);
-  }
-
-  function isAdjectivePos(posRaw){
-    const posNorm = normalize(posRaw).replace(/\s+/g, ' ');
-    return /\b(adiectiv(?:um|e)?|adjectiv(?:um|e)?|adj\.?)\b/.test(posNorm);
-  }
-
-  function labelForIV(posRaw){
-    if(isVerbPos(posRaw)) return 'aspectus';
-    if(isAdjectivePos(posRaw)) return 'gradus comparativus';
-    return 'genus';
-  }
-
-  function createChip(label, value){
-    const chip = document.createElement('span');
-    chip.className = 'chip';
-    chip.textContent = `${label}: ${value}`;
-    return chip;
-  }
-
-  function createRawVChip(vRaw){
-    const chip = document.createElement('span');
-    chip.className = 'chip raw-chip';
-    appendMarkedText(chip, vRaw);
-    return chip;
-  }
-
-  function createTranslationBlock(label, value){
-    const wrap = document.createElement('div');
-    wrap.className = 'translation-block';
-    const lab = document.createElement('div');
-    lab.className = 'lab';
-    lab.textContent = label;
-    const val = document.createElement('div');
-    val.className = 'val';
-    val.textContent = value || '—';
-    wrap.appendChild(lab);
-    wrap.appendChild(val);
-    return wrap;
-  }
-
-  function createMorphTable(vRaw){
-    const wrap = document.createElement('div');
-    wrap.className = 'morph-wrap';
-
-    const table = document.createElement('table');
-    table.className = 'morph-table';
-
-    const thead = document.createElement('thead');
-    const headRow = document.createElement('tr');
-    const blank = document.createElement('th');
-    blank.textContent = '';
-    headRow.appendChild(blank);
-    for(const label of COL_LABELS){
-      const th = document.createElement('th');
-      th.textContent = label;
-      headRow.appendChild(th);
-    }
-    thead.appendChild(headRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    const matrix = buildVMatrix(vRaw);
-
-    for(let r = 0; r < ROW_LABELS.length; r++){
-      const tr = document.createElement('tr');
-      const th = document.createElement('th');
-      th.textContent = ROW_LABELS[r];
-      tr.appendChild(th);
-      for(let c = 0; c < COL_LABELS.length; c++){
-        const td = document.createElement('td');
-        appendMarkedText(td, matrix[r][c]);
-        tr.appendChild(td);
-      }
-      tbody.appendChild(tr);
-    }
-
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-
-    const note = document.createElement('div');
-    note.className = 'drawer-note';
-    note.textContent = 'Układ kolumny V: 7 segmentów dla Singularis, następnie 3 grupy dla Dualis (1–2–7, 3–4, 5–6), następnie 6 grup dla Pluralis (1 i 7 wspólne, dalej 2–6 kolejno).';
-    wrap.appendChild(note);
-
-    return wrap;
-  }
-
-  // Krótkie testy dymne: bez frameworka, ale pomagają złapać regresje podczas ręcznych zmian.
-  function runRenderSmokeTests(){
-    console.assert(isGluedToken('*Seulú') === true, 'Test 1: *Seulú powinno być sklejone.');
-    console.assert(isGluedToken('   †dne') === true, 'Test 2: †dne po trim powinno być sklejone.');
-    console.assert(isGluedToken('d*ne') === false, 'Test 3: marker w środku nie powinien uruchamiać stylu.');
-    console.assert(isGluedToken('**†forma') === true, 'Test 4: wiele markerów na początku dalej liczy się jako glued.');
-
-    const tokens = tokenizeMarkedText('(*Seulú), dne');
-    console.assert(tokens.includes('*Seulú'), 'Test 5: tokenizer powinien oddzielić nawias od *Seulú.');
-
-    const matrix = buildVMatrix('a;b;c;d;e;f;g;h;i;j;k;l;m;n;o;p');
-    console.assert(matrix[0][0] === 'a' && matrix[6][0] === 'g', 'Test 6: Singularis 1–7.');
-    console.assert(matrix[0][1] === 'h' && matrix[1][1] === 'h' && matrix[6][1] === 'h', 'Test 7: Dualis 1/2/7 wspólne.');
-    console.assert(matrix[2][1] === 'i' && matrix[3][1] === 'i', 'Test 8: Dualis 3/4 wspólne.');
-    console.assert(matrix[4][1] === 'j' && matrix[5][1] === 'j', 'Test 9: Dualis 5/6 wspólne.');
-    console.assert(matrix[0][2] === 'k' && matrix[6][2] === 'k' && matrix[5][2] === 'p', 'Test 10: Pluralis 1/7 wspólne, 2–6 kolejno.');
-  }
-
-  runRenderSmokeTests();
-
-  // Parser PDF oparty na poprzedniej wersji Dictionarium: stabilne przypisywanie po granicach kolumn.
   async function loadRecordsFromPdf(){
-    statusEl.textContent = 'Ładowanie danych z PDF…';
-    cardsEl.innerHTML = '';
-    topbar.style.display = 'none';
+    statusEl.textContent = "Ładowanie danych z PDF…";
+    cardsEl.innerHTML = "";
+    topbar.style.display = "none";
 
-    const url = PDF_URL + '&cb=' + Date.now();
+    const url = PDF_URL + "&cb=" + Date.now();
     const loadingTask = pdfjsLib.getDocument({ url, cMapPacked: true, useSystemFonts: true });
     const pdf = await loadingTask.promise;
 
-    const columnLabels = ['SCL','I','II','III','IV','V','RUS','POL','CZE'];
+    const columnLabels = ["SCL","I","II","III","IV","V","RUS","POL","CZE"];
     let anchors = null;
     const records = [];
 
-    for(let p = 1; p <= pdf.numPages; p++){
+    for(let p=1; p<=pdf.numPages; p++){
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
-      const items = content.items.map(it => ({
-        str: (it.str || '').trim(),
-        x: it.transform[4],
-        y: it.transform[5]
-      })).filter(it => it.str);
+      const items = content.items.map(it=>{
+        const tx = it.transform[4];
+        const ty = it.transform[5];
+        return {str:(it.str||"").trim(), x:tx, y:ty};
+      }).filter(it=>it.str);
 
-      items.sort((a,b) => b.y - a.y || a.x - b.x);
+      items.sort((a,b)=> b.y - a.y || a.x - b.x);
       const rows = [];
       const tolY = 3.5;
       for(const it of items){
-        let row = rows.length ? rows[rows.length - 1] : null;
+        let row = rows.length ? rows[rows.length-1] : null;
         if(!row || Math.abs(row.y - it.y) > tolY){
-          rows.push({ y: it.y, items:[it] });
+          rows.push({ y:it.y, items:[it] });
         }else{
           row.items.push(it);
         }
       }
 
       for(const row of rows){
-        const joined = row.items.map(i => i.str).join(' ');
+        const joined = row.items.map(i=>i.str).join(" ");
         const hasAll = columnLabels.every(lab => joined.includes(lab));
         if(hasAll){
           const found = {};
           for(const lab of columnLabels){
-            let cand = row.items.find(i => i.str === lab) || row.items.find(i => i.str.includes(lab));
+            let cand = row.items.find(i => i.str === lab);
+            if(!cand) cand = row.items.find(i => i.str.includes(lab));
             if(cand) found[lab] = cand.x;
           }
           if(Object.keys(found).length >= 7){ anchors = found; }
@@ -521,8 +283,8 @@
 
       if(!anchors){
         for(const row of rows){
-          const txt = row.items.map(i => i.str);
-          const hits = ['RUS','POL','CZE'].filter(x => txt.includes(x)).length;
+          const txt = row.items.map(i=>i.str);
+          const hits = ["RUS","POL","CZE"].filter(x => txt.includes(x)).length;
           if(hits >= 3){
             const found = {};
             for(const lab of columnLabels){
@@ -535,44 +297,44 @@
       }
       if(!anchors) continue;
 
-      const fullOrder = ['SCL','I','II','III','IV','V','RUS','POL','CZE'];
+      const fullOrder = ["SCL","I","II","III","IV","V","RUS","POL","CZE"];
       const present = fullOrder
         .map(lab => ({ lab, x: anchors[lab] }))
         .filter(c => Number.isFinite(c.x))
-        .sort((a,b) => a.x - b.x);
+        .sort((a,b)=> a.x - b.x);
 
       if(present.length && present.length < fullOrder.length){
         const minX = present[0].x;
-        const maxX = present[present.length - 1].x;
+        const maxX = present[present.length-1].x;
         const step = (maxX - minX) / (fullOrder.length - 1 || 1);
-        const have = new Set(present.map(c => c.lab));
-        for(let i = 0; i < fullOrder.length; i++){
+        const have = new Set(present.map(c=>c.lab));
+        for(let i=0;i<fullOrder.length;i++){
           const lab = fullOrder[i];
           if(!have.has(lab)) present.push({ lab, x: minX + step * i });
         }
-        present.sort((a,b) => a.x - b.x);
+        present.sort((a,b)=> a.x - b.x);
       }
 
       const boundaries = [];
-      for(let i = 0; i < present.length - 1; i++){
-        boundaries.push((present[i].x + present[i + 1].x) / 2);
+      for(let i=0;i<present.length-1;i++){
+        boundaries.push((present[i].x + present[i+1].x) / 2);
       }
 
       function colByX(x){
-        for(let i = 0; i < present.length; i++){
-          const left = i === 0 ? -Infinity : boundaries[i - 1];
-          const right = i === present.length - 1 ? Infinity : boundaries[i];
+        for(let i=0;i<present.length;i++){
+          const left  = i===0 ? -Infinity : boundaries[i-1];
+          const right = i===present.length-1 ? Infinity : boundaries[i];
           if(x >= left && x < right) return present[i].lab;
         }
-        return 'SCL';
+        return "SCL";
       }
 
       for(const row of rows){
-        const rowText = row.items.map(i => i.str).join(' ');
-        const isHeader = columnLabels.every(l => rowText.includes(l));
+        const rowText = row.items.map(i=>i.str).join(" ");
+        const isHeader = columnLabels.every(l=> rowText.includes(l));
         if(isHeader) continue;
 
-        const rec = {SCL:'', I:'', II:'', III:'', IV:'', V:'', RUS:'', POL:'', CZE:''};
+        const rec = {SCL:"", I:"", II:"", III:"", IV:"", V:"", RUS:"", POL:"", CZE:""};
         const buckets = {SCL:[], I:[], II:[], III:[], IV:[], V:[], RUS:[], POL:[], CZE:[]};
 
         for(const it of row.items){
@@ -580,31 +342,200 @@
           if(lab) buckets[lab].push(it.str);
         }
         for(const lab of Object.keys(rec)){
-          rec[lab] = buckets[lab].join(' ').replace(/\s+/g, ' ').trim();
+          rec[lab] = buckets[lab].join(" ").replace(/\s+/g, " ").trim();
         }
 
-        const nonEmptyCols = Object.values(rec).filter(Boolean).length;
+        const nonEmptyCols = Object.values(rec).filter(v=>v).length;
         if(nonEmptyCols >= 2) records.push(rec);
       }
     }
 
-    const key = r => [r.SCL,r.I,r.II,r.III,r.IV,r.V,r.RUS,r.POL,r.CZE].join('¦');
+    const key = r => [r.SCL,r.I,r.II,r.III,r.IV,r.V,r.RUS,r.POL,r.CZE].join("¦");
     const uniq = new Map();
     for(const r of records){
       if(!uniq.has(key(r))) uniq.set(key(r), r);
     }
     const final = Array.from(uniq.values());
+
     countAll.textContent = final.length;
-    topbar.style.display = 'flex';
-    statusEl.textContent = '';
+    topbar.style.display = "flex";
+    statusEl.textContent = "";
     return final;
   }
 
-  const data = await loadRecordsFromPdf().catch(err => {
+  const data = await loadRecordsFromPdf().catch(err=>{
     console.error(err);
-    statusEl.innerHTML = 'Nie udało się wczytać PDF (CORS / format). Uruchom plik z lokalnego serwera HTTP, nie przez <code>file://</code>.';
+    statusEl.innerHTML = "Nie udało się wczytać PDF (CORS / format). Odśwież stronę albo uruchom plik przez http://localhost.";
     return [];
   });
+
+  function normalize(s){ return (s || "").toLowerCase().trim(); }
+
+  function prefixMatch(cell, q){
+    if(!cell || !q) return false;
+    const parts = cell.split(/[,;|/]/g).map(s=>s.trim()).filter(Boolean);
+    if(parts.length === 0) parts.push(cell.trim());
+    const qn = normalize(q);
+    return parts.some(p => normalize(p).startsWith(qn));
+  }
+
+  function posKind(pos){
+    const s = (pos || "").toLowerCase().replace(/\s+/g,' ').trim();
+    if(/\b(verbum|verb|v\.?)\b/.test(s)) return 'verb';
+    if(/\b(adiectiv(?:um|e)?|adjectiv(?:um|e)?|adj\.?)\b/.test(s)) return 'adj';
+    return 'other';
+  }
+
+  function labelForIV(pos){
+    const kind = posKind(pos);
+    return kind === 'verb' ? 'aspectus' : (kind === 'adj' ? 'gradus comparativus' : 'genus');
+  }
+
+  // Parsowanie V: akceptuje średnik zwykły, pełnoszeroki i warianty, a także łamania linii.
+  function parseVParts(v){
+    if(!v) return [];
+    return String(v)
+      .replace(/[\uFF1B\uFE14\uFE54\u061B]/g, ';')
+      .replace(/\r\n?/g, '\n')
+      .replace(/\n/g, ';')
+      .split(';')
+      .map(s => s.trim());
+  }
+
+  // Mapowanie zgodne z ustaleniem użytkownika:
+  // sg = pierwsze 7 segmentów,
+  // du = [8. segment => nom/acc/voc, 9. => gen/loc, 10. => dat/ins],
+  // pl = [11. => nom/voc, 12-16. => acc,gen,loc,dat,ins].
+  function mapVPartsToTable(parts){
+    const get = i => parts[i] ?? '';
+    return {
+      sg: [get(0), get(1), get(2), get(3), get(4), get(5), get(6)],
+      duNav: get(7),
+      duGl:  get(8),
+      duDi:  get(9),
+      pl: [get(10), get(11), get(12), get(13), get(14), get(15), get(10)]
+    };
+  }
+
+  // Renderuje komórkę tak, aby tokeny zaczynające się od * lub † były szare,
+  // ale sam znak * / † pozostał widoczny.
+  function appendStyledTokens(el, value){
+    el.textContent = '';
+    if(value == null || value === '') return;
+
+    const pieces = String(value)
+      .split(/(\s+|,\s*|\/\s*|\|\s*|\+\s*)/g)
+      .filter(part => part !== '');
+
+    for(const part of pieces){
+      const isSeparator = /^(\s+|,\s*|\/\s*|\|\s*|\+\s*)$/.test(part);
+      if(isSeparator){
+        el.appendChild(document.createTextNode(part));
+        continue;
+      }
+      const span = document.createElement('span');
+      span.textContent = part;
+      if(/^[*†]/.test(part.trimStart())) span.className = 'muted';
+      el.appendChild(span);
+    }
+  }
+
+  function buildInflectionBox(rec){
+    const kind = posKind(rec.I);
+    const title = kind === 'verb' ? 'coniugatio' : 'declinatio';
+    const parts = parseVParts(rec.V);
+    const mapped = mapVPartsToTable(parts);
+    const rowLabels = ['Nominativus','Accusativus','Genetivus','Locativus','Dativus','Instrumentalis','Vocativus'];
+
+    const box = document.createElement('div');
+    box.className = 'infl-box';
+
+    const head = document.createElement('div');
+    head.className = 'infl-head';
+    head.textContent = title;
+    box.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'infl-body';
+
+    if(!parts.some(Boolean)){
+      const empty = document.createElement('div');
+      empty.className = 'infl-empty';
+      empty.textContent = 'Brak danych fleksyjnych w kolumnie V.';
+      body.appendChild(empty);
+      box.appendChild(body);
+      return { box, title };
+    }
+
+    const table = document.createElement('table');
+    table.className = 'infl-table';
+
+    const thead = document.createElement('thead');
+    const htr = document.createElement('tr');
+    ['', 'Singularis', 'Dualis', 'Pluralis'].forEach((txt, idx)=>{
+      const th = document.createElement('th');
+      if(idx === 0) th.textContent = '';
+      else th.textContent = txt;
+      htr.appendChild(th);
+    });
+    thead.appendChild(htr);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for(let i=0; i<7; i++){
+      const tr = document.createElement('tr');
+      const th = document.createElement('th');
+      th.className = 'case';
+      th.scope = 'row';
+      th.textContent = rowLabels[i];
+      tr.appendChild(th);
+
+      const tdSg = document.createElement('td');
+      tdSg.className = 'inf-form';
+      appendStyledTokens(tdSg, mapped.sg[i]);
+      tr.appendChild(tdSg);
+
+      // Dualis ma grupy wspólnych form: nom/acc, gen/loc, dat/ins, a voc = nom.
+      if(i === 0){
+        const tdDu = document.createElement('td');
+        tdDu.className = 'inf-form';
+        tdDu.rowSpan = 2;
+        appendStyledTokens(tdDu, mapped.duNav);
+        tr.appendChild(tdDu);
+      }
+      if(i === 2){
+        const tdDu = document.createElement('td');
+        tdDu.className = 'inf-form';
+        tdDu.rowSpan = 2;
+        appendStyledTokens(tdDu, mapped.duGl);
+        tr.appendChild(tdDu);
+      }
+      if(i === 4){
+        const tdDu = document.createElement('td');
+        tdDu.className = 'inf-form';
+        tdDu.rowSpan = 2;
+        appendStyledTokens(tdDu, mapped.duDi);
+        tr.appendChild(tdDu);
+      }
+      if(i === 6){
+        const tdDu = document.createElement('td');
+        tdDu.className = 'inf-form';
+        appendStyledTokens(tdDu, mapped.duNav);
+        tr.appendChild(tdDu);
+      }
+
+      const tdPl = document.createElement('td');
+      tdPl.className = 'inf-form';
+      appendStyledTokens(tdPl, mapped.pl[i]);
+      tr.appendChild(tdPl);
+
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    body.appendChild(table);
+    box.appendChild(body);
+    return { box, title };
+  }
 
   function render(){
     const left = leftSel.value;
@@ -622,14 +553,13 @@
         statusEl.innerHTML = 'Wpisz w polu wyszukiwania, np. <b>dom</b>. Ustaw po lewej <b>Polonica</b>, po prawej <b>Slavonica</b>.';
       }
       return;
-    }else{
-      statusEl.textContent = '';
     }
+    statusEl.textContent = '';
 
-    rows = rows.slice().sort((a,b) => (a[right] || '').localeCompare(b[right] || ''));
+    rows = rows.slice().sort((a,b)=> (a[right] || '').localeCompare(b[right] || ''));
 
     for(const r of rows){
-      const card = document.createElement('article');
+      const card = document.createElement('div');
       card.className = 'card';
 
       const head = document.createElement('div');
@@ -640,67 +570,84 @@
       word.textContent = (r[right] || '(brak)').trim();
       head.appendChild(word);
 
-      const source = document.createElement('div');
-      source.className = 'subword';
-      source.textContent = `${leftSel.options[leftSel.selectedIndex].text} → ${rightSel.options[rightSel.selectedIndex].text} · ${(r[left] || '—').trim()}`;
-      head.appendChild(source);
-
       const meta = document.createElement('div');
       meta.className = 'meta';
-      if(r.I) meta.appendChild(createChip('pars orationis', r.I));
-      if(r.II) meta.appendChild(createChip('paradigma accentualia', r.II));
-      if(r.III) meta.appendChild(createChip('exemplum', r.III));
-      if(r.IV) meta.appendChild(createChip(labelForIV(r.I), r.IV));
-      if(r.V) meta.appendChild(createRawVChip(r.V));
+      const chips = [
+        { lab:'pars orationis',        val:r.I,  raw:false },
+        { lab:'paradigma accentualia', val:r.II, raw:false },
+        { lab:'exemplum',              val:r.III,raw:false },
+        { lab:labelForIV(r.I),         val:r.IV, raw:false },
+        { lab:'',                      val:r.V,  raw:true  }
+      ];
+      for(const it of chips){
+        if(!it.val) continue;
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = it.raw ? it.val : `${it.lab}: ${it.val}`;
+        meta.appendChild(chip);
+      }
       head.appendChild(meta);
 
       const actions = document.createElement('div');
       actions.className = 'actions';
 
-      const btnTranslations = document.createElement('button');
-      btnTranslations.type = 'button';
-      btnTranslations.className = 'pill-btn';
-      btnTranslations.textContent = 'translationes';
-      btnTranslations.setAttribute('aria-pressed', 'false');
+      const btnTrans = document.createElement('button');
+      btnTrans.className = 'action-btn';
+      btnTrans.type = 'button';
+      btnTrans.textContent = 'translationes';
+      btnTrans.setAttribute('aria-pressed', 'false');
+      btnTrans.title = 'Pokaż lub ukryj tłumaczenia';
 
-      const btnMorph = document.createElement('button');
-      btnMorph.type = 'button';
-      btnMorph.className = 'pill-btn';
-      btnMorph.textContent = isVerbPos(r.I) ? 'coniugatio' : 'declinatio';
-      btnMorph.setAttribute('aria-pressed', 'false');
-      if(!hasMorphData(r.V)) btnMorph.disabled = true;
+      const kind = posKind(r.I);
+      const inflLabel = kind === 'verb' ? 'coniugatio' : 'declinatio';
+      const btnInfl = document.createElement('button');
+      btnInfl.className = 'action-btn';
+      btnInfl.type = 'button';
+      btnInfl.textContent = inflLabel;
+      btnInfl.setAttribute('aria-pressed', 'false');
+      btnInfl.title = 'Pokaż lub ukryj tabelę fleksyjną';
 
-      actions.appendChild(btnTranslations);
-      actions.appendChild(btnMorph);
+      actions.appendChild(btnTrans);
+      actions.appendChild(btnInfl);
 
-      const transDrawer = document.createElement('div');
-      transDrawer.className = 'drawer';
-      const transGrid = document.createElement('div');
-      transGrid.className = 'translations-grid';
-      transGrid.appendChild(createTranslationBlock('Polonica', r.POL));
-      transGrid.appendChild(createTranslationBlock('Bohemica', r.CZE));
-      transGrid.appendChild(createTranslationBlock('Russica', r.RUS));
-      transDrawer.appendChild(transGrid);
+      const trans = document.createElement('div');
+      trans.className = 'translations';
+      const tl = document.createElement('div');
+      tl.className = 'tl';
+      [
+        ['Polonica', r.POL],
+        ['Bohemica', r.CZE],
+        ['Russica',  r.RUS]
+      ].forEach(([lab, val])=>{
+        const wrap = document.createElement('div');
+        const L = document.createElement('div');
+        L.className = 'lab';
+        L.textContent = lab;
+        const V = document.createElement('div');
+        V.className = 'val';
+        V.textContent = val || '—';
+        wrap.appendChild(L);
+        wrap.appendChild(V);
+        tl.appendChild(wrap);
+      });
+      trans.appendChild(tl);
 
-      const morphDrawer = document.createElement('div');
-      morphDrawer.className = 'drawer';
-      if(hasMorphData(r.V)) morphDrawer.appendChild(createMorphTable(r.V));
+      const infl = buildInflectionBox(r);
 
-      btnTranslations.addEventListener('click', () => {
-        const open = transDrawer.classList.toggle('open');
-        btnTranslations.setAttribute('aria-pressed', open ? 'true' : 'false');
+      btnTrans.addEventListener('click', ()=>{
+        const open = trans.classList.toggle('open');
+        btnTrans.setAttribute('aria-pressed', open ? 'true' : 'false');
       });
 
-      btnMorph.addEventListener('click', () => {
-        if(btnMorph.disabled) return;
-        const open = morphDrawer.classList.toggle('open');
-        btnMorph.setAttribute('aria-pressed', open ? 'true' : 'false');
+      btnInfl.addEventListener('click', ()=>{
+        const open = infl.box.classList.toggle('open');
+        btnInfl.setAttribute('aria-pressed', open ? 'true' : 'false');
       });
 
       card.appendChild(head);
       card.appendChild(actions);
-      card.appendChild(transDrawer);
-      card.appendChild(morphDrawer);
+      card.appendChild(trans);
+      card.appendChild(infl.box);
       cardsEl.appendChild(card);
     }
   }
@@ -711,19 +658,17 @@
   function enforceSlavonica(trigger){
     const prevLeft = lastLeft;
     const prevRight = lastRight;
-    const L = leftSel.value;
-    const R = rightSel.value;
 
     if(trigger === 'left'){
-      if(L === 'SCL' && R === 'SCL'){
+      if(leftSel.value === 'SCL' && rightSel.value === 'SCL'){
         rightSel.value = prevLeft && prevLeft !== 'SCL' ? prevLeft : DEFAULT_FALLBACK;
-      }else if(L !== 'SCL' && R !== 'SCL'){
+      }else if(leftSel.value !== 'SCL' && rightSel.value !== 'SCL'){
         rightSel.value = 'SCL';
       }
     }else if(trigger === 'right'){
-      if(L === 'SCL' && R === 'SCL'){
+      if(leftSel.value === 'SCL' && rightSel.value === 'SCL'){
         leftSel.value = prevRight && prevRight !== 'SCL' ? prevRight : DEFAULT_FALLBACK;
-      }else if(L !== 'SCL' && R !== 'SCL'){
+      }else if(leftSel.value !== 'SCL' && rightSel.value !== 'SCL'){
         leftSel.value = 'SCL';
       }
     }
@@ -733,18 +678,16 @@
     render();
   }
 
-  leftSel.addEventListener('change', () => enforceSlavonica('left'));
-  rightSel.addEventListener('change', () => enforceSlavonica('right'));
+  leftSel.addEventListener('change', ()=> enforceSlavonica('left'));
+  rightSel.addEventListener('change', ()=> enforceSlavonica('right'));
   queryInp.addEventListener('input', debounce(render, 120));
 
   lastLeft = leftSel.value;
   lastRight = rightSel.value;
-
   if(data.length){
     statusEl.innerHTML = 'Wpisz w polu wyszukiwania, np. <b>dom</b>. Ustaw po lewej <b>Polonica</b>, po prawej <b>Slavonica</b>.';
   }
 })();
 </script>
-
 </body>
 </html>
