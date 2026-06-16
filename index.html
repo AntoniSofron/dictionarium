@@ -1,3 +1,9 @@
+Tak — poniżej masz cały kod `index.html` z dodanym hoverem dla `Chandži`.
+
+```html
+<!-- Wklej dokładnie ten plik jako index.html -->
+<!-- Kod zawiera: XLSX, &7 na szaro, oraz hover Chandži: I [II] -->
+
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -5,7 +11,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dictionarium Sanctae Marthae</title>
 
-<!-- SheetJS (XLSX parser) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
@@ -47,7 +52,8 @@
   .pill-btn{ appearance:none; border:1px solid var(--pill-b); background:var(--pill); color:var(--text);
     padding:9px 14px; border-radius:999px; cursor:pointer; font-weight:700; letter-spacing:.2px;
     transition:filter .15s ease, transform .06s ease, box-shadow .15s ease; }
-  .pill-btn:hover{ filter:brightness(1.08) } .pill-btn[aria-pressed="true"]{ outline:2px solid var(--accent); outline-offset:2px; }
+  .pill-btn:hover{ filter:brightness(1.08) }
+  .pill-btn[aria-pressed="true"]{ outline:2px solid var(--accent); outline-offset:2px; }
 
   .xlat-panel, .morph-panel, .sig-panel{ display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-top:8px; }
   .xlat-panel.open, .morph-panel.open, .sig-panel.open{ display:block; }
@@ -58,7 +64,6 @@
   .xlat-item + .xlat-item{ border-top:1px dashed var(--line); }
   .lab{ font-weight:700; color:var(--accent) }
 
-  /* tabele morfologiczne */
   .morph-table{
     display:inline-table; width:max-content; table-layout:auto;
     border-collapse:separate; border-spacing:0; font-size:15px; margin:0 2px;
@@ -72,6 +77,41 @@
 
   .sig-text{ white-space:pre-wrap; line-height:1.55; }
   .tone7{ color:var(--mark7); }
+
+  .chandzi-hover{
+    position:relative;
+    cursor:help;
+    display:inline-block;
+  }
+  .chandzi-tip{
+    display:none;
+    position:absolute;
+    left:50%;
+    bottom:135%;
+    transform:translateX(-50%);
+    background:#0f1520;
+    color:var(--text);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:6px 10px;
+    white-space:nowrap;
+    font-size:13px;
+    font-weight:600;
+    box-shadow:0 8px 20px rgba(0,0,0,.45);
+    z-index:100;
+  }
+  .chandzi-tip::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:100%;
+    transform:translateX(-50%);
+    border:6px solid transparent;
+    border-top-color:var(--line);
+  }
+  .chandzi-hover:hover .chandzi-tip{
+    display:block;
+  }
 
   footer{ position:fixed; left:0; right:0; bottom:0; background:linear-gradient(180deg, rgba(11,15,20,0), rgba(11,15,20,.9));
     border-top:1px solid var(--line); text-align:center; font-style:italic; color:var(--muted); padding:10px 16px; }
@@ -168,6 +208,8 @@
 
   const cols = ["SLA","PSL","CHANDŽI","0","I","II","III","IV","V","VI","LSA","RUS","ALB","UCR","POL","SSU","SIN","SLO","BOH","SLV","CRO","SER","MAC","BUL","JAP","COR"];
 
+  let chandziMap = new Map();
+
   function debounce(fn, d=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); } }
   function normalize(s){ return (s||"").toLowerCase().trim(); }
   function prefixMatch(cell,q){
@@ -183,12 +225,9 @@
     if(!s) return escapeHtml(fallback);
     const idx = s.indexOf("&7");
     if(idx < 0) return escapeHtml(s);
-
     const left = s.slice(0, idx);
     const right = s.slice(idx + 2).replace(/&7/g, "");
-
-    const html = `${escapeHtml(left)}${right ? `<span class="tone7">${escapeHtml(right)}</span>` : ""}`;
-    return html || escapeHtml(fallback);
+    return `${escapeHtml(left)}${right ? `<span class="tone7">${escapeHtml(right)}</span>` : ""}` || escapeHtml(fallback);
   }
 
   function setMarkedHTML(el, raw, fallback="—"){
@@ -240,17 +279,8 @@
     table.appendChild(tbody);
     return table;
 
-    function tdLabel(txt){
-      const x=document.createElement('td');
-      x.className='cases';
-      x.textContent=txt;
-      return x;
-    }
-    function td(val){
-      const x=document.createElement('td');
-      setMarkedHTML(x, val, '—');
-      return x;
-    }
+    function tdLabel(txt){ const x=document.createElement('td'); x.className='cases'; x.textContent=txt; return x; }
+    function td(val){ const x=document.createElement('td'); setMarkedHTML(x, val, '—'); return x; }
   }
 
   function buildAdjTable(vStr){
@@ -261,150 +291,61 @@
     const tbody = document.createElement('tbody');
 
     tbody.appendChild(rowHead(['Indefinitum','Adverbium','Comparativus','Superlativus']));
-    {
-      const tr=document.createElement('tr');
-      tr.append(td(g(1)), td(g(2)), td(g(3)), td(g(4)));
-      tbody.appendChild(tr);
-    }
+    { const tr=document.createElement('tr'); tr.append(td(g(1)), td(g(2)), td(g(3)), td(g(4))); tbody.appendChild(tr); }
 
     tbody.appendChild(sectionRow('Singularis',5));
     tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Nominativus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Nominativus'));
       const left=document.createElement('td'); left.colSpan=2; setMarkedHTML(left, g(5), '—'); tr.appendChild(left);
-      tr.append(td(g(10)), td(g(11)));
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Accusativus'));
-      tr.append(td(g(6)), td(g(5)), td(g(10)), td(g(12)));
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Genetivus'));
+      tr.append(td(g(10)), td(g(11))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Accusativus'));
+      tr.append(td(g(6)), td(g(5)), td(g(10)), td(g(12))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Genetivus'));
       const left=document.createElement('td'); left.colSpan=3; setMarkedHTML(left, g(6), '—'); tr.appendChild(left);
-      tr.append(td(g(13)));
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Locativus'));
+      tr.append(td(g(13))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Locativus'));
       const left=document.createElement('td'); left.colSpan=3; setMarkedHTML(left, g(7), '—'); tr.appendChild(left);
-      tr.append(td(g(14)));
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Dativus'));
+      tr.append(td(g(14))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Dativus'));
       const left=document.createElement('td'); left.colSpan=3; setMarkedHTML(left, g(8), '—'); tr.appendChild(left);
-      tr.append(td(g(14)));
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Instrumentalis'));
+      tr.append(td(g(14))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Instrumentalis'));
       const left=document.createElement('td'); left.colSpan=3; setMarkedHTML(left, g(9), '—'); tr.appendChild(left);
-      tr.append(td(g(15)));
-      tbody.appendChild(tr);
-    }
+      tr.append(td(g(15))); tbody.appendChild(tr); }
 
     tbody.appendChild(sectionRow('Dualis',5));
     tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Nom., Acc.'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Nom., Acc.'));
       const a=document.createElement('td'); a.colSpan=2; setMarkedHTML(a, g(16), '—'); tr.appendChild(a);
-      const b=document.createElement('td'); b.colSpan=2; setMarkedHTML(b, g(19), '—'); tr.appendChild(b);
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Gen., Loc.'));
-      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(17), '—'); tr.appendChild(one);
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Dat., Instr.'));
-      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(18), '—'); tr.appendChild(one);
-      tbody.appendChild(tr);
-    }
+      const b=document.createElement('td'); b.colSpan=2; setMarkedHTML(b, g(19), '—'); tr.appendChild(b); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Gen., Loc.'));
+      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(17), '—'); tr.appendChild(one); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Dat., Instr.'));
+      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(18), '—'); tr.appendChild(one); tbody.appendChild(tr); }
 
     tbody.appendChild(sectionRow('Pluralis',5));
     tbody.appendChild(rowHead(['','Masculinum anim.','Masculinum','Neutrum','Femininum'], true));
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Nominativus'));
-      tr.append(td(g(20)), td(g(21)), td(g(25)), td(g(21)));
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Accusativus'));
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Nominativus'));
+      tr.append(td(g(20)), td(g(21)), td(g(25)), td(g(21))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Accusativus'));
       const left=document.createElement('td'); left.colSpan=2; setMarkedHTML(left, g(21), '—'); tr.appendChild(left);
-      tr.append(td(g(25)), td(g(21)));
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Genetivus'));
-      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(22), '—'); tr.appendChild(one);
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Locativus'));
-      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(22), '—'); tr.appendChild(one);
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Dativus'));
-      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(23), '—'); tr.appendChild(one);
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLabel('Instrumentalis'));
-      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(24), '—'); tr.appendChild(one);
-      tbody.appendChild(tr);
-    }
+      tr.append(td(g(25)), td(g(21))); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Genetivus'));
+      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(22), '—'); tr.appendChild(one); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Locativus'));
+      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(22), '—'); tr.appendChild(one); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Dativus'));
+      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(23), '—'); tr.appendChild(one); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLabel('Instrumentalis'));
+      const one=document.createElement('td'); one.colSpan=4; setMarkedHTML(one, g(24), '—'); tr.appendChild(one); tbody.appendChild(tr); }
 
     table.appendChild(tbody);
     return table;
 
-    function tdLabel(txt){
-      const x=document.createElement('td');
-      x.className='cases';
-      x.textContent=txt;
-      return x;
-    }
-    function td(val){
-      const x=document.createElement('td');
-      setMarkedHTML(x, val, '—');
-      return x;
-    }
-    function sectionRow(t, span){
-      const tr=document.createElement('tr');
-      const th=document.createElement('th');
-      th.textContent=t;
-      th.colSpan=span;
-      tr.appendChild(th);
-      return tr;
-    }
-    function rowHead(labels, firstIsCases=false){
-      const tr=document.createElement('tr');
-      labels.forEach((lab,i)=>{
-        const th=document.createElement('th');
-        th.textContent = firstIsCases&&i===0?' ':lab;
-        if(firstIsCases&&i===0) th.className='cases';
-        tr.appendChild(th);
-      });
-      return tr;
-    }
+    function tdLabel(txt){ const x=document.createElement('td'); x.className='cases'; x.textContent=txt; return x; }
+    function td(val){ const x=document.createElement('td'); setMarkedHTML(x, val, '—'); return x; }
+    function sectionRow(t, span){ const tr=document.createElement('tr'); const th=document.createElement('th'); th.textContent=t; th.colSpan=span; tr.appendChild(th); return tr; }
+    function rowHead(labels, firstIsCases=false){ const tr=document.createElement('tr'); labels.forEach((lab,i)=>{ const th=document.createElement('th'); th.textContent = firstIsCases&&i===0?' ':lab; if(firstIsCases&&i===0) th.className='cases'; tr.appendChild(th); }); return tr; }
   }
 
   function buildVerbTable(aspectStr, vStr){
@@ -421,157 +362,69 @@
     const tbody = document.createElement('tbody');
     const slots=[];
 
-    {
-      const tr = document.createElement('tr');
-      const t0=document.createElement('td'), t1=document.createElement('td'),
-            t2=document.createElement('td'), t3=document.createElement('td');
-      tr.append(t0,t1,t2,t3); tbody.appendChild(tr);
-      slots.push(t0,t1,t2,t3);
-    }
+    { const tr = document.createElement('tr'); const t0=document.createElement('td'), t1=document.createElement('td'), t2=document.createElement('td'), t3=document.createElement('td');
+      tr.append(t0,t1,t2,t3); tbody.appendChild(tr); slots.push(t0,t1,t2,t3); }
 
     tbody.appendChild(sectionHeaderRow('Participia', 3));
-    {
-      const tr=document.createElement('tr');
-      const thEmpty=document.createElement('th'); thEmpty.className='cases'; thEmpty.textContent=' '; tr.appendChild(thEmpty);
+    { const tr=document.createElement('tr'); const thEmpty=document.createElement('th'); thEmpty.className='cases'; thEmpty.textContent=' '; tr.appendChild(thEmpty);
       const th1=document.createElement('th'); th1.textContent='Praeteritum'; tr.appendChild(th1);
-      const th2=document.createElement('th'); th2.textContent=isImpf?'Praesens':'Futurum'; tr.appendChild(th2);
-      tbody.appendChild(tr);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Perfectivum'));
-      const t=document.createElement('td'); t.colSpan=2; tr.appendChild(t);
-      tbody.appendChild(tr);
-      slots.push(t);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Activum'));
-      const a=document.createElement('td'), b=document.createElement('td');
-      tr.append(a,b);
-      tbody.appendChild(tr);
-      slots.push(a,b);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Passivum'));
-      const a=document.createElement('td'), b=document.createElement('td');
-      tr.append(a,b);
-      tbody.appendChild(tr);
-      slots.push(a,b);
-    }
+      const th2=document.createElement('th'); th2.textContent=isImpf?'Praesens':'Futurum'; tr.appendChild(th2); tbody.appendChild(tr); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Perfectivum')); const t=document.createElement('td'); t.colSpan=2; tr.appendChild(t); tbody.appendChild(tr); slots.push(t); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Activum')); const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr); slots.push(a,b); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Passivum')); const a=document.createElement('td'), b=document.createElement('td'); tr.append(a,b); tbody.appendChild(tr); slots.push(a,b); }
 
     tbody.appendChild(sectionHeaderRow('Praesens', 4));
     tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Singularis'), td(), td(), td());
-      tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2],tr.children[3]);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Dualis'), td(), td(2));
-      tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2]);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Pluralis'), td(), td(), td());
-      tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2],tr.children[3]);
-    }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
 
     const tenseBlock = isImpf ? 'Imperfectum' : 'Aoristus';
     tbody.appendChild(sectionHeaderRow(tenseBlock, 4));
     tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Singularis'), td(), td(), td());
-      tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2],tr.children[3]);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Dualis'), td(), td(2));
-      tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2]);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Pluralis'), td(), td(), td());
-      tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2],tr.children[3]);
-    }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2],tr.children[3]); }
 
     tbody.appendChild(sectionHeaderRow('Imperativus', 4));
     tbody.appendChild(rowFrom(['','Persona prima','Persona secunda','Persona tertia'], 'th', true));
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Singularis'), td(), td(2));
-      tbody.appendChild(tr);
-      slots.push(tr.children[2]);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Dualis'), td(), td(), td());
-      tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2]);
-    }
-    {
-      const tr=document.createElement('tr');
-      tr.append(tdLab('Pluralis'), td(), td(), td());
-      tbody.appendChild(tr);
-      slots.push(tr.children[1],tr.children[2]);
-    }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Singularis'), td(), td(2)); tbody.appendChild(tr); slots.push(tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Dualis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
+    { const tr=document.createElement('tr'); tr.append(tdLab('Pluralis'), td(), td(), td()); tbody.appendChild(tr); slots.push(tr.children[1],tr.children[2]); }
 
     table.appendChild(tbody);
-    slots.forEach((cell, i)=>{
-      setMarkedHTML(cell, v[i], i===0 ? "" : "—");
-    });
+    slots.forEach((cell, i)=>{ setMarkedHTML(cell, v[i], i===0 ? "" : "—"); });
     return table;
 
-    function sectionHeaderRow(title, span){
-      const tr=document.createElement('tr');
-      const th=document.createElement('th');
-      th.textContent=title;
-      th.colSpan=span;
-      tr.appendChild(th);
-      return tr;
-    }
-    function rowFrom(labels, tag='td', italicFirst=false){
-      const tr=document.createElement('tr');
-      labels.forEach((lab,i)=>{
-        const el=document.createElement(tag);
-        if(italicFirst && i===0){
-          el.className='cases';
-          el.textContent=' ';
-        } else {
-          el.textContent=lab;
-        }
-        tr.appendChild(el);
-      });
-      return tr;
-    }
-    function td(colSpan=1){
-      const x=document.createElement('td');
-      if(colSpan>1) x.colSpan=colSpan;
-      return x;
-    }
-    function tdLab(txt){
-      const x=document.createElement('td');
-      x.textContent=txt;
-      x.className='cases';
-      return x;
-    }
+    function sectionHeaderRow(title, span){ const tr=document.createElement('tr'); const th=document.createElement('th'); th.textContent=title; th.colSpan=span; tr.appendChild(th); return tr; }
+    function rowFrom(labels, tag='td', italicFirst=false){ const tr=document.createElement('tr'); labels.forEach((lab,i)=>{ const el=document.createElement(tag); if(italicFirst && i===0){ el.className='cases'; el.textContent=' '; } else el.textContent=lab; tr.appendChild(el); }); return tr; }
+    function td(colSpan=1){ const x=document.createElement('td'); if(colSpan>1) x.colSpan=colSpan; return x; }
+    function tdLab(txt){ const x=document.createElement('td'); x.textContent=txt; x.className='cases'; return x; }
   }
 
   async function loadXLSX(){
     statusEl.textContent = "Ładowanie danych z XLSX…";
     const buf = await fetch(XLSX_URL, {cache: "no-store"}).then(r=>r.arrayBuffer());
     const wb  = XLSX.read(new Uint8Array(buf), { type: "array" });
+
     const ws  = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { defval:"", raw:true });
+
+    const chandziWs = wb.Sheets["Chandži"];
+    if(chandziWs){
+      const chandziRows = XLSX.utils.sheet_to_json(chandziWs, { defval:"", raw:true });
+      chandziMap = new Map();
+
+      for(const r of chandziRows){
+        const znak = (r["Chandži"] ?? r["CHANDŽI"] ?? "").toString().trim();
+        if(!znak) continue;
+
+        chandziMap.set(znak, {
+          I:  (r["I"] ?? "").toString().trim(),
+          II: (r["II"] ?? "").toString().trim()
+        });
+      }
+    }
 
     const normKey = k => (k||"").toString().trim().toUpperCase();
 
@@ -620,6 +473,27 @@
     document.querySelectorAll('.pill-btn[aria-pressed="true"]').forEach(b=>b.setAttribute('aria-pressed','false'));
   }
 
+  function appendChandziSpan(parent, raw){
+    const znak = (raw || "").trim();
+    if(!znak) return;
+
+    const span = document.createElement('span');
+    span.className = 'bracket chandzi-hover';
+    span.appendChild(document.createTextNode(`「${znak}」`));
+
+    const info = chandziMap.get(znak);
+    if(info){
+      const tip = document.createElement('span');
+      tip.className = 'chandzi-tip';
+      const main = info.I || "—";
+      const trans = info.II ? ` [${info.II}]` : "";
+      tip.textContent = `${main}${trans}`;
+      span.appendChild(tip);
+    }
+
+    parent.appendChild(span);
+  }
+
   function render(){
     const L = leftSel.value, R = rightSel.value, q = queryInp.value.trim();
     let rows = data;
@@ -651,11 +525,9 @@
         setMarkedHTML(br, `[${r["0"]}]`, "");
         word.append(br);
       }
+
       if(r["CHANDŽI"]){
-        const cz=document.createElement('span');
-        cz.className='bracket';
-        setMarkedHTML(cz, `「${r["CHANDŽI"]}」`, "");
-        word.append(cz);
+        appendChandziSpan(word, r["CHANDŽI"]);
       }
 
       head.appendChild(word);
@@ -807,3 +679,4 @@
 </script>
 </body>
 </html>
+```
