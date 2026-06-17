@@ -214,45 +214,45 @@
     return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   }
 
-function markedHtml(raw, fallback="—"){
-  const s = (raw ?? "").toString().trim();
-  if(!s) return escapeHtml(fallback);
+  function markedHtml(raw, fallback="—"){
+    const s = (raw ?? "").toString().trim();
+    if(!s) return escapeHtml(fallback);
 
-  let html = "";
-  let color = "normal";
-  let i = 0;
+    let html = "";
+    let color = "normal";
+    let i = 0;
 
-  while(i < s.length){
-    if(s.startsWith("&7", i)){
-      color = "gray";
-      i += 2;
-      continue;
+    while(i < s.length){
+      if(s.startsWith("&7", i)){
+        color = "gray";
+        i += 2;
+        continue;
+      }
+
+      if(s.startsWith("&f", i)){
+        color = "normal";
+        i += 2;
+        continue;
+      }
+
+      const next7 = s.indexOf("&7", i);
+      const nextF = s.indexOf("&f", i);
+      const nexts = [next7, nextF].filter(x => x !== -1);
+      const next = nexts.length ? Math.min(...nexts) : s.length;
+
+      const part = s.slice(i, next);
+
+      if(color === "gray"){
+        html += `<span class="tone7">${escapeHtml(part)}</span>`;
+      } else {
+        html += escapeHtml(part);
+      }
+
+      i = next;
     }
 
-    if(s.startsWith("&f", i)){
-      color = "normal";
-      i += 2;
-      continue;
-    }
-
-    const next7 = s.indexOf("&7", i);
-    const nextF = s.indexOf("&f", i);
-    const nexts = [next7, nextF].filter(x => x !== -1);
-    const next = nexts.length ? Math.min(...nexts) : s.length;
-
-    const part = s.slice(i, next);
-
-    if(color === "gray"){
-      html += `<span class="tone7">${escapeHtml(part)}</span>`;
-    } else {
-      html += escapeHtml(part);
-    }
-
-    i = next;
+    return html || escapeHtml(fallback);
   }
-
-  return html || escapeHtml(fallback);
-}
 
   function setMarkedHTML(el, raw, fallback="—"){
     el.innerHTML = markedHtml(raw, fallback);
